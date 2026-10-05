@@ -30,7 +30,9 @@ const start = async () => {
     await ensureDialysisCharge();
 
     const server = http.createServer(app);
-    initSocketServer(server);
+    initSocketServer(server, {
+      corsOrigin: [config.clientUrl, 'http://localhost:5173', 'http://localhost:3000'],
+    });
     logger.info('Socket.IO realtime attached');
 
     server.listen(config.port, () => {
