@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ZhanX HospitalOS - CLINICAL COMMAND</title>
+<style>
+:root{
+  --bg:#020b18; --panel:#071a2d; --line:#164b78; --blue:#087CFF; --cyan:#00C8FF;
+  --txt:#f5f9ff; --mut:#8fa9c4; --dim:#5d7research;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:"Inter",-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color:var(--txt); background:var(--bg); overflow:hidden; -webkit-font-smoothing:antialiased;
+}
+.scene{position:fixed;inset:0;z-index:0}
+.scene svg{position:absolute;inset:0;width:100%;height:100%}
+.scene .overlay{position:absolute;inset:0;background:
+  linear-gradient(92deg, rgba(2,11,24,.88) 0%, rgba(2,11,24,.55) 44%, rgba(2,11,24,.32) 62%, rgba(2,11,24,.5) 100%),
+  radial-gradient(120% 90% at 78% 4%, rgba(0,130,232,.12), transparent 55%);
+}
+.ambient{position:absolute;width:520px;height:520px;border-radius:50%;filter:blur(90px);pointer-events:none}
+.ambient.a1{top:-160px;right:8%;background:rgba(8,124,255,.16)}
+.ambient.a2{bottom:-180px;left:-80px;background:rgba(0,200,255,.09)}
+.ambient.a3{top:30%;left:42%;width:420px;height:420px;background:rgba(29,78,155,.10)}
+/* layout */
+.shell{position:relative;z-index:1;height:100vh;display:grid;grid-template-columns:minmax(0,1fr) 500px;align-items:center;padding:0 0 0 74px}
+.left{max-width:560px;padding-bottom:70px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:36px}
+.mark{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--blue),var(--cyan));
+  display:grid;place-items:center;box-shadow:0 0 0 1px rgba(120,200,255,.25),0 10px 30px -8px rgba(0,200,255,.5)}
+.mark svg{width:22px;height:22px}
+.brand b{font-size:19px;font-weight:800;letter-spacing:-.2px}
+.brand b i{font-style:normal;color:var(--cyan)}
+.brand small{display:block;font-size:9.5px;letter-spacing:4px;color:var(--cyan);font-weight:600;margin-top:1px}
+.eyebrow{font-size:10px;letter-spacing:5px;color:var(--cyan);font-weight:600;margin-bottom:16px}
+.hero h1{font-size:52px;line-height:1.06;font-weight:800;letter-spacing:-1.5px}
+.hero h1 .c{color:var(--cyan)}
+.hero p{max-width:500px;margin-top:18px;font-size:15.5px;line-height:1.6;color:#c5d7ea}
+/* features */
+.feats{display:flex;gap:26px;margin-top:34px}
+.feat{display:flex;gap:11px;align-items:flex-start}
+.feat .fi{width:38px;height:38px;border-radius:50%;border:1.5px solid rgba(0,200,255,.45);display:grid;place-items:center;color:var(--cyan);flex:none}
+.feat .fi svg{width:18px;height:18px}
+.feat b{font-size:13px;font-weight:700;display:block}
+.feat span{font-size:11.5px;color:var(--mut)}
+/* stats */
+.stats{position:absolute;left:74px;bottom:34px;display:flex;gap:0;background:rgba(5,18,42,.72);
+  border:1px solid rgba(22,75,120,.55);backdrop-filter:blur(14px);border-radius:14px;padding:16px 22px;max-width:560px}
+.stat{flex:1;text-align:center;position:relative}
+.stat + .stat::before{content:"";position:absolute;left:0;top:8%;height:84%;width:1px;background:rgba(200,230,255,.16)}
+.stat b{font-size:24px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.stat span{display:block;margin-top:3px;font-size:10.5px;color:#7fb1d9;letter-spacing:.6px}
+.sysonline{position:absolute;left:74px;bottom:10px;display:flex;align-items:center;gap:7px;font-size:11px;color:var(--cyan);font-weight:600}
+.sysonline .dot{width:7px;height:7px;border-radius:50%;background:#18d68a;box-shadow:0 0 8px #18d68a}
+/* login card */
+.panel{width:100%;max-width:500px;justify-self:end;padding:0 40px}
+.card{background:rgba(7,26,45,.82);border:1px solid rgba(22,75,120,.75);border-radius:22px;
+  backdrop-filter:blur(18px);box-shadow:0 34px 90px -20px rgba(0,0,0,.75),0 0 0 1px rgba(140,200,255,.06),inset 0 1px 0 rgba(255,255,255,.05);
+  padding:38px 36px 30px}
+.card h2{font-size:30px;font-weight:800;letter-spacing:-.5px}
+.card .sub{color:var(--mut);font-size:13.5px;margin:6px 0 26px}
+label{display:block;font-size:12px;color:#bcd2ea;font-weight:600;margin:16px 0 7px}
+.inwrap{position:relative}
+.inwrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:#6f9ac8}
+.inwrap input{width:100%;height:48px;background:rgba(4,16,34,.9);border:1px solid #164b78;border-radius:12px;
+  padding:0 44px 0 42px;color:var(--txt);font-size:14px;outline:none;transition:border-color .18s,box-shadow .18s}
+.inwrap input::placeholder{color:#5d7uiui}
+.inwrap input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,200,255,.16),0 0 16px rgba(0,140,255,.25)}
+.eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:0;color:#7fb1d9;cursor:pointer;padding:6px}
+.eye svg{width:17px;height:17px;position:static;transform:none}
+.row{display:flex;align-items:center;justify-content:space-between;margin:16px 0 20px}
+.remember{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#a9c2dc;cursor:pointer}
+.remember input{width:15px;height:15px;accent-color:var(--blue)}
+.forgot{font-size:12.5px;color:var(--cyan);background:none;border:0;cursor:pointer;font-weight:600}
+.forgot:hover{text-decoration:underline}
+.btn{width:100%;height:56px;border:0;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;color:#fff;
+  background:linear-gradient(135deg,var(--blue),#00a3e8);box-shadow:0 12px 30px -8px rgba(0,150,255,.55),inset 0 1px 0 rgba(255,255,255,.2);
+  transition:transform .16s,box-shadow .16s,filter .16s}
+.btn:hover{filter:brightness(1.1);box-shadow:0 16px 36px -8px rgba(0,150,255,.7);transform:translateY(-1px)}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.divider{display:flex;align-items:center;gap:14px;margin:22px 0 16px;color:var(--mut);font-size:11px;letter-spacing:1px}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:rgba(22,75,120,.5)}
+.sso{width:100%;height:46px;border:1px solid #1a5a92;border-radius:12px;background:rgba(8,40,78,.4);
+  color:#c5d7ea;font-size:14px;font-weight:600;cursor:pointer;transition:background .16s,border-color .16s}
+.sso:hover{background:rgba(8,56,104,.55);border-color:#2280c8}
+.sso svg{width:16px;height:16px;vertical-align:-3px;margin-right:8px;color:var(--cyan)}
+.secure{display:flex;align-items:center;gap:11px;margin-top:20px;padding:12px 14px;border:1px solid rgba(0,200,255,.22);
+  background:rgba(4,16,34,.55);border-radius:12px}
+.secure svg{width:18px;height:18px;color:var(--cyan);flex:none}
+.secure b{font-size:12.5px;font-weight:700;display:block}
+.secure span{font-size:11px;color:var(--mut)}
+.err{display:none;align-items:center;gap:9px;background:rgba(255,50,70,.12);border:1px solid rgba(255,70,90,.4);
+  border-radius:10px;padding:11px 13px;margin-top:16px;font-size:12.5px;color:#ff8ba0}
+.err.show{display:flex}
+.err svg{width:15px;height:15px;flex:none}
+.spin{width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;display:inline-block;vertical-align:-3px;margin-right:9px;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* responsive */
+@media (max-width:1180px){ .shell{grid-template-columns:1fr;padding-left:0}.left{display:none}.panel{justify-self:center;padding:0 18px}.card{width:100%}.stats{display:none}.sysonline{left:18px} }
+@media (max-width:560px){ .card{padding:28px 20px}.hero h1{font-size:34px} }
+</style>
+</head>
+<body>
+<!-- Cinematic hospital night scene -->
+<div class="scene" aria-hidden="true">
+<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
+  <defs>
+    <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#040b1c"/><stop offset=".5" stop-color="#071735"/><stop offset="1" stop-color="#0d2a58"/>
+    </linearGradient>
+    <linearGradient id="glowR" x1="0" y1="0" x2=" Hob1" y2="1">
+      <stop offset="0" stop-color="#ff4d6d" stop-opacity=".8"/><stop offset="1" stop-color="#ff4d6d" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="moon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eef6ff"/><stop offset="1" stop-color="#cfe2f5"/>
+    </linearGradient>
+  </defs>
+  <!-- sky -->
+  <rect fill="url(#sky1)" width="1600" height="900"/>
+  <!-- stars -->
+  <g fill="#cfe4ff" opacity=".5">
+    <circle cx="120" cy="60" r="1.4"/><circle cx="340" cy="90" r="1"/><circle cx="520" cy="45" r="1.5"/><circle cx="760" cy="110" r="1"/><circle cx="900" cy="40" r="1.6"/><circle cx="1120" cy="75" r="1"/><circle cx="1350" cy="55" r="1.4"/><circle cx="1480" cy="100" r="1.2"/>
+    <circle cx="220" cy="150" r="1"/><circle cx="630" cy="160" r="1.3"/><circle cx="1010" cy="120" r="1"/><circle cx="1560" cy="130" r="1.1"/>
+  </g>
+  <!-- moon -->
+  <circle cx="1240" cy="140" r="52" fill="url(#moon)" opacity=".85"/>
+  <circle cx="1262" cy="128" r="42" fill="#071735" opacity=".55"/>
+  <!-- distant skyline -->
+  <g fill="#0a2145" opacity=".85">
+    <rect x="30" y="300" width="120" height="330"/><rect x="160" y="260" width="90" height="370"/>
+    <rect x="260" y="330" width="110" height="300"/><rect x="420" y="240" width="70" height="390"/>
+    <rect x="500" y="310" width="120" height="320"/><rect x="640" y="270" width="80" height="360"/>
+    <rect x="1160" y="250" width="100" height="380"/><rect x="1270" y="320" width="120" height="310"/><rect x="1400" y="280" width="90" height="350"/>
+  </g>
+  <!-- distant windows -->
+  <g fill="#ffd36b" opacity=".22">
+    <g><rect x="46" y="322" width="10" height="14"/><rect x="70" y="322" width="10" height="14"/><rect x="94" y="322" width="10" height="14"/><rect x="46" y="356" width="10" height="14"/><rect x="94" y="356" width="10" height="14"/><rect x="70" y="390" width="10" height="14"/></g>
+    <g><rect x="176" y="282" width="9" height="13"/><rect x="198" y="282" width="9" height="13"/><rect x="176" y="310" width="9" height="13"/><rect x="198" y="338" width="9" height="13"/></g>
+    <g><rect x="436" y="282" width="10" height="14"/><rect x="460" y="282" width="10" height="14"/><rect x="436" y="320" width="10" height="14"/><rect x="460" y="320" width="10" height="14"/></g>
+  </g>
+  <!-- main hospital building L -->
+  <g>
+    <rect x="120" y="180" width="360" height="450" fill="#0d2b58"/>
+    <rect x="120" y="168" width="360" height="26" fill="#ffd9c3" opacity=".14"/>
+    <g fill="#123c78">
+      <rect x="150" y="210" width="36" height="46"/><rect x="206" y="210" width="36" height="46"/><rect x="262" y="210" width="36" height="46"/><rect x="318" y="210" width="36" height="46"/><rect x="374" y="210" width="36" height="46"/>
+      <rect x="150" y="276" width="36" height="46"/><rect x="206" y="276" width="36" height="46"/><rect x="262" y="276" width="36" height="46"/><rect x="318" y="276" width="36" height="46"/><rect x="374" y="276" width="36" height="46"/>
+      <rect x="150" y="342" width="36" height="46"/><rect x="206" y="342" width="36" height="46"/><rect x="262" y="342" width="36" height="46"/><rect x="318" y="342" width="36" height="46"/><rect x="374" y="342" width="36" height="46"/>
+      <rect x="150" y="408" width="36" height="46"/><rect x="206" y="408" width="36" height="46"/><rect x="262" y="408" width="36" height="46"/><rect x="318" y="408" width="36" height="46"/><rect x="374" y="408" width="36" height="46"/>
+    </g>
+    <g fill="#cfe8ff"><rect x="150" y="210" width="36" height="46"/><rect x="374" y="342" width="36" height="46"/><rect x="150" y="408" width="36" height="46"/></g>
+  </g>
+  <!-- main tower -->
+  <rect x="180" y="96" width="240" height="84" fill="#0e2c5a"/>
+  <g fill="#f2d3c2" opacity=".16"><rect x="196" y="108" width="22" height="14"/><rect x="234" y="108" width="22" height="14"/><rect x="272" y="108" width="22" height="14"/><rect x="310" y="108" width="22" height="14"/><rect x="348" y="108" width="22" height="14"/><rect x="196" y="138" width="22" height="14"/><rect x="348" y="138" width="22" height="14"/></g>
+  <!-- hospital cross (+ mast) -->
+  <rect x="292" y="56" width="14" height="40" fill="#f2f6ff" opacity=".8"/>
+  <g><rect x="240" y="78" width="120" height="96" rx="12" fill="#071a2d"/><rect x="240" y="78" width="120" height="22" rx="12" fill="#0d2b58"/></g>
+  <path d="M288 84v84M252 126h72" stroke="#f0ffc2" stroke-width="0" />
+  <!-- glowing red cross sign -->
+  <g>
+    <circle cx="300" cy="106" r="34" fill="url(#glowR)" opacity=".5"/>
+    <path d="M288 84 M288 66h24v20h20v24h-20v20h-24v-20h-20v-24h20z" fill="#ff2d55"/>
+    <path d="M288 88v40M268 108h40" stroke="#ff2d55" stroke-width="0"/>
+  </g>
+  <g fill="#fff" opacity=".92">
+    <rect x="286" y="84" width="28" height="12" rx="2"/>
+    <rect x="302" y="100" width="12" height="28" rx="2"/>
+  </g>
+  <!-- hospital "HOSPITAL" sign -->
+  <g font-family="Inter,Arial" font-weight="800" opacity=".9">
+    <rect x="150" y="182" width="100" height="26" fill="#0a1f44" rx="4"/>
+  </g>
+  <!-- big hospital building R + emergency -->
+  <g>
+    <rect x="880" y="170" width="420" height="460" fill="#0c2854"/>
+    <rect x="880" y="156" width="420" height="28" fill="#12396e"/>
+    <g fill="#15458055" opacity=".85">
+      <rect x="910" y="200" width="38" height="48"/><rect x="966" y="200" width="38" height="48"/><rect x="1022" y="200" width="38" height="48"/><rect x="1078" y="200" width="38" height="48"/><rect x="1134" y="200" width="38" height="48"/><rect x="1190" y="200" width="38" height="48"/><rect x="1246" y="200" width="38" height="48"/>
+      <rect x="910" y="272" width="38" height="48"/><rect x="966" y="272" width="38" height="48"/><rect x="1022" y="272" width="38" height="48"/><rect x="1078" y="272" width="38" height="48"/><rect x="1134" y="272" width="38" height="48"/><rect x="1190" y="272" width="38" height="48"/><rect x="1246" y="272" width="38" height="48"/>
+      <rect x="910" y="344" width="38" height="48"/><rect x="966" y="344" width="38" height="48"/><rect x="1078" y="344" width="38" height="48"/><rect x="1134" y="344" width="38" height="48"/><rect x="1246" y="344" width="38" height="48"/>
+      <rect x="966" y="416" width="38" height="48"/><rect x="1134" y="416" width="38" height="48"/><rect x="1246" y="416" width="38" height="48"/>
+    </g>
+    <g fill="#d9ecff"><rect x="910" y="344" width="38" height="48"/><rect x="1246" y="200" width="38" height="48"/><rect x="1078" y="416" width="38" height="48"/></g>
+  </g>
+  <!-- window glow strips (skyline cinema) -->
+  <g fill="#7fd4ff" opacity=".5">
+    <rect x="912" y="202" width="34" height="10" rx="2"/>
+  </g>
+  <!-- ambulance near emergency entrance -->
+  <g>
+    <rect x="940" y="600" width="180" height="62" rx="8" fill="#f4f8ff"/>
+    <rect x="940" y="600" width="180" height="24" rx="8" fill="#d9e6f5"/>
+    <circle cx="972" cy="676" r="22" fill="#0a1730"/><circle cx="1064" cy="676" r="22" fill="#0a1730"/>
+    <circle cx="972" cy="674" r="12" fill="#9fb2c9"/><circle cx="1064" cy="674" r="12" fill="#9fb2c9"/>
+    <rect x="988" y="564" width="14" height="36" fill="#ff2d55"/>
+    <g fill="#ff2d55"><rect x="1008" y="612" width="16" height="12" rx="2"/><rect x="1040" y="612" width="16" height="12" rx="2"/></g>
+  </g>
+  <!-- emergency glow overlay -->
+  <rect x="880" y="588" width="420" height="30" fill="url(#glowR)" opacity=".28"/>
+  <!-- emergency entrance canopy -->
+  <rect x="880" y="600" width="44" height="58" fill="#071a2d"/>
+  <rect x="880" y="586" width="46" height="18" fill="#12396e"/>
+  <text x="882" y="606" font-family="Inter,Arial" font-size="13" font-weight="800" fill="#ff4d6d" opacity=".95">EMERGENCY</text>
+  <!-- hospital sign text R -->
+  <text x="970" y="180" font-family="Inter,Arial" font-size="13" font-weight="700" letter-spacing="8" fill="#cfe2f5" opacity=".75">ZHANX HOSPITAL</text>
+  <!-- ambulance road -->
+  <rect y="700" width="1600" height="200" fill="#050e22"/>
+  <path d="M0 758h1600" stroke="#ffd36b" stroke-width="2" opacity=".16" stroke-dasharray="30 26"/>
+  <rect x="0" y="790" width="1600" height="110" fill="#041020"/>
+  <!-- palm trees -->
+  <g stroke="#12395e" stroke-width="7" fill="none" stroke-linecap="round"><path d="M580 560v160"/></g>
+  <g fill="#0e2c5a"><path d="M580 470c-18 34-40 52-66 62l4-14c18-14 34-28 44-46z"/><path d="M580 470c18 34 40 52 66 62l-4-14c-18-14-34-28-44-46z"/><path d="M580 480c-26 22-56 34-86 38l6-14c22-8 46-16 62-30z"/><path d="M580 486c26 22 56 34 84 40l-2-16c-22-6-44-16-58-30z"/></g>
+  <rect x="564" y="632" width="32" height="88" fill="#12395e"/>
+  <rect x="1140" y="590" width="28" height="110" fill="#12395e"/>
+  <g fill="#0e2c5a" transform="translate(560,0)"><path d="M1140 500c-16 32-38 50-62 60l4-13c17-13 32-26 42-43z"/><path d="M1140 500c16 32 38 50 62 60l-4-13c-17-13-32-26-42-43z"/></g>
+  <!-- tree next to hospital L -->
+  <g transform="translate(140,0)"><circle cx="90" cy="430" r="42" fill="#0b2a4a" opacity=".9"/><circle cx="130" cy="420" r="36" fill="#0d3260" opacity=".9"/><rect x="112" y="460" width="18" height="90" fill="#12395e"/></g>
+  <!-- subtle driveway light -->
+  <ellipse cx="300" cy="720" rx="220" ry="26" fill="#ffd36b" opacity=".06"/>
+  <ellipse cx="1000" cy="720" rx="260" ry="28" fill="#ffd36b" opacity=".07"/>
+</svg>
+  <div class="overlay"></div>
+  <div class="ambient a1"></div><div class="ambient a2"></div><div class="ambient a3"></div>
+</div>
+
+<!-- Branding + left content -->
+<div class="shell">
+  <div class="left">
+    <div class="brand">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+      <div>
+        <b>ZhanX <i>HospitalOS</i></b>
+        <small>CLINICAL COMMAND</small>
+      </div>
+    </div>
+    <div class="eyebrow">HOSPITAL MANAGEMENT SYSTEM</div>
+    <div class="hero">
+      <h1>Unified Care.<br/><span class="c">Smarter Operations.</span></h1>
+      <p>ZhanX HospitalOS brings all your hospital operations under one powerful, secure and intelligent platform.</p>
+    </div>
+    <div class="feats">
+      <div class="feat"><div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg></div><div><b>Patient Care</b><span>Better Outcomes</span></div></div>
+      <div class="feat"><div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></div><div><b>Operational</b><span>Efficiency</span></div></div>
+      <div class="feat"><div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div><div><b>Data Security</b><span>Complete Privacy</span></div></div>
+      <div class="feat"><div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14"/></svg></div><div><b>Growth Ready</b><span>Scalable Platform</span></div></div>
+    </div>
+  </div>
+
+  <!-- stats pinned bottom-left -->
+  <div class="stats">
+    <div class="stat"><b>500+</b><span>BEDS</span></div>
+    <div class="stat"><b>50+</b><span>DEPARTMENTS</span></div>
+    <div class="stat"><b>200+</b><span>MEDICAL STAFF</span></div>
+    <div class="stat"><b>24/7</b><span>CARE &amp; SUPPORT</span></div>
+  </div>
+  <div class="sysonline"><span class="dot"></span>System Online</div>
+
+  <!-- login panel -->
+  <div class="panel">
+    <div class="card">
+      <h2>Welcome Back</h2>
+      <p class="sub">Sign in to your ZhanX HospitalOS account</p>
+
+      <div class="err" id="err"><span id="erric"></span><span id="errtxt"></span></div>
+
+      <form id="login-form" novalidate>
+        <label for="uname">Username / Email / Employee ID</label>
+        <div class="inwrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <input id="uname" name="username" type="text" placeholder="Enter username or email" autocomplete="username" spellcheck="false" required />
+        </div>
+
+        <label for="pass">Password</label>
+        <div class="inwrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <input id="pass" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
+          <button type="button" class="eye" id="eye" aria-label="Toggle password visibility"><svg id="eyeOpen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg><svg id="eyeClosed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.1 10.1 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="m1 1 22 22"/></svg></button>
+        </div>
+
+        <div class="row">
+          <label class="remember" style="margin:0"><input type="checkbox" id="remember" name="remember" /> Remember me</label>
+          <button type="button" class="forgot" id="forgot">Forgot password?</button>
+        </div>
+
+        <button type="submit" class="btn" id="signin">
+          <span id="btnIn">Sign In&nbsp;&rarr;</span>
+        </button>
+      </form>
+
+      <div class="divider">or</div>
+      <button class="sso" id="sso">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Login with SSO
+      </button>
+
+      <div class="secure">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+        <div><b>Secure Login</b><span>Your data is protected with enterprise-grade security</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)};
+  var API='/api/auth/login';
+  var errBox=$('#err'),errTxt=$('#errtxt'),errIc=$('#erric');
+  var btn=$('#signin'),btnIn=$('#btnIn');
+  var form=$('#login-form'),uname=$('#uname'),pass=$('#pass'),remember=$('#remember');
+
+  function showErr(msg){
+    errIc.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>';
+    errTxt.textContent=msg; errBox.classList.add('show');
+  }
+  function hideErr(){ errBox.classList.remove('show'); }
+
+  /* toggle password */
+  $('#eye').addEventListener('click',function(){
+    var open=pass.type==='password';
+    pass.type=open?'text':'password';
+    $('#eyeOpen').style.display=open?'none':'';
+    $('#eyeClosed').style.display=open?'':'none';
+  });
+
+  $('#forgot').addEventListener('click',function(){ showErr('Password reset is available through your administrator.'); setTimeout(hideErr,2600); });
+  $('#sso').addEventListener('click',function(){ showErr('SSO is not configured for this environment. Sign in with your credentials instead.'); setTimeout(hideErr,3200); });
+
+  function setLoading(on){
+    btn.disabled=on;
+    btnIn.innerHTML=on?'<span class="spin"></span>Signing in&hellip;':'Sign In&nbsp;&rarr;';
+  }
+
+  form.addEventListener('submit',function(e){
+    e.preventDefault();
+    hideErr();
+    var u=uname.value.trim(), p=pass.value;
+    if(!u||!p){ showErr('Please enter your username and password.'); return; }
+    setLoading(true proiektuak);
+    fetch(API,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:u,password:p})
+    }).then(function(r){return r.json().then(function(j){return {ok:r.ok,status:r.status,j:j}}) })
+      .then(function(res){
+        setLoading(false);
+        if(!res.ok){
+          var msg=(res.j&&res.j.message)||'Invalid username or password.';
+          if(res.status===401) msg='Invalid username or password.';
+          if(res.status===403) msg='Your account is currently disabled. Contact your administrator.';
+          showErr(msg);
+          if(res.status===401) uname.focus();
+          return;
+        }
+        var d=res.j.data||res.j;
+        /* tokens */
+        if(d.accessToken) localStorage.setItem('accessToken',d.accessToken);
+        if(d.refreshToken) localStorage.setItem('refreshToken',d.refreshToken);
+        if(d.user) localStorage.setItem('user',JSON.stringify(d.user));
+        if(remember.checked){
+          try{ localStorage.setItem('cr',JSON.stringify({u:u})) }catch(_){}
+        }
+        btnIn.innerHTML='<span class="spin" style="border-color:rgba(0,0,0,0)"></span>Authentication Successful&nbsp;';
+        setTimeout(function(){ redirect(d.user||{}); },260);
+      })
+      .catch(function(){
+        setLoading(false);
+        showErr('Unable to connect to the server. Please try again.');
+      });
+  });
+
+  function redirect(user){
+    var role=(user.roleCode||user.role||'').toUpperCase();
+    var target={
+      'SUPER_ADMIN':'/admin','HOSPITAL_ADMIN':'/admin','ADMIN':'/admin','OPERATIONS_ADMIN':'/admin','BRANCH_ADMIN':'/admin',
+      'DOCTOR':'/doctor/dashboard','NURSE':'/nurse/dashboard','RECEPTIONIST':'/reception/dashboard','RECEPTION':'/reception/dashboard',
+      'PHARMACIST':'/pharmacy/dashboard','LAB_TECHNICIAN':'/lab/dashboard','LABTECH':'/lab/dashboard',
+      'BILLING_STAFF':'/billing/dashboard','BILLING':'/billing/dashboard','ACCOUNTANT':'/accounts/dashboard','STORE_MANAGER':'/store/dashboard'
+    }[role];
+    window.location.href=target||'/dashboard';
+  }
+
+  /* Enter submits (native form behaviour) */
+  uname.addEventListener('keydown',function(e){ if(e.key==='Enter'){e.preventDefault();pass.focus();} });
+
+  /* prepopulate remembered username */
+  try{ var cr=JSON.parse(localStorage.getItem('cr')||'null'); if(cr&&cr.u){ uname.value=cr.u; remember.checked=true; } }catch(_){}
+  uname.focus();
+})();
+</script>

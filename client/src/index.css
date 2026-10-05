@@ -1,0 +1,181 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-ink-200;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-ink-50 font-sans text-ink-800;
+  }
+  ::selection {
+    @apply bg-brand-600/20 text-brand-900;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-ink-200;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    @apply bg-ink-300;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand-500/50 ring-offset-1 ring-offset-white;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-500/40 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 hover:shadow-cardHover;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-ink-700 ring-1 ring-ink-200 shadow-sm hover:bg-ink-50 hover:ring-ink-300;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white shadow-sm hover:bg-red-700 hover:shadow-cardHover;
+  }
+  .btn-ghost {
+    @apply btn text-ink-600 hover:bg-ink-100 hover:text-ink-900;
+  }
+  .btn-success {
+    @apply btn bg-mint-600 text-white shadow-sm hover:bg-mint-700 hover:shadow-cardHover;
+  }
+  .btn-icon {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-md text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-800 focus:outline-none;
+  }
+  .btn-icon-success {
+    @apply btn-icon text-mint-600 hover:bg-mint-50 hover:text-mint-700;
+  }
+  .btn-icon-danger {
+    @apply btn-icon text-red-500 hover:bg-red-50 hover:text-red-600;
+  }
+  .btn-icon-primary {
+    @apply btn-icon text-brand-600 hover:bg-brand-50 hover:text-brand-700;
+  }
+
+  .card {
+    @apply rounded-xl border border-ink-200 bg-white shadow-card;
+  }
+  .card-hover {
+    @apply card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-cardHover;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-ink-300 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 transition-colors focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 disabled:bg-ink-50 disabled:text-ink-400;
+  }
+  .label {
+    @apply mb-1.5 block text-[13px] font-medium text-ink-700;
+  }
+  .select {
+    @apply input cursor-pointer;
+  }
+
+  .table-wrap {
+    @apply card overflow-hidden;
+  }
+  .table {
+    @apply min-w-full text-sm;
+  }
+  .table thead th {
+    @apply border-b border-ink-100 bg-ink-50/70 px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-ink-500;
+  }
+  .table tbody td {
+    @apply border-b border-ink-100 px-4 py-3 whitespace-nowrap text-ink-700 last:pr-4;
+  }
+  .table tbody tr {
+    @apply transition-colors hover:bg-brand-50/40;
+  }
+  .table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none;
+  }
+  .badge::before {
+    content: '';
+    @apply h-1.5 w-1.5 rounded-full bg-current opacity-70;
+  }
+
+  .kbd {
+    @apply rounded border border-ink-300 bg-white px-1.5 py-0.5 font-mono text-[10px] font-medium text-ink-500 shadow-sm;
+  }
+
+  .divider {
+    @apply border-t border-ink-100;
+  }
+
+  .stat-card {
+    @apply card relative overflow-hidden p-5;
+  }
+  .stat-card::after {
+    content: '';
+    @apply pointer-events-none absolute inset-x-0 top-0 h-0.5;
+    background: linear-gradient(90deg, var(--accent, #1d6ff5), transparent);
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #print-patient-card,
+  #print-patient-card *,
+  #print-bill,
+  #print-bill *,
+  #print-receipt,
+  #print-receipt *,
+  #print-doc,
+  #print-doc * {
+    visibility: visible;
+  }
+  #print-patient-card {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  #print-bill,
+  #print-receipt,
+  #print-doc {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    width: 100%;
+    max-width: 210mm;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}

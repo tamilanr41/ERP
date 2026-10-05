@@ -1,0 +1,270 @@
+/* ============================================================
+   SECTION 46 — DARK CLINICAL WORKSTATION
+   Premium navy / black surfaces, blue active state, cyan highlights,
+   red critical, orange warning, green completion.
+   Applied through [data-theme='clinical'] so the same component
+   classes render as a clinical console instead of a light admin UI.
+   ============================================================ */
+:root {
+  --c-void: #05080f;
+  --c-bg: #070b14;
+  --c-surface: #0c1322;
+  --c-elevated: #111a2b;
+  --c-raised: #16203400;
+  --c-line: #1c2942;
+  --c-line-soft: #162034;
+  --c-text: #e8eefb;
+  --c-text-2: #aab8d0;
+  --c-text-3: #74839e;
+  --c-active: #2563eb;
+  --c-active-soft: rgba(37, 99, 235, 0.16);
+  --c-cyan: #22d3ee;
+  --c-critical: #ef4444;
+  --c-warning: #f59e0b;
+  --c-done: #10b981;
+}
+
+[data-theme='clinical'] {
+  color-scheme: dark;
+}
+
+[data-theme='clinical'] body,
+[data-theme='clinical'] #root {
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+
+/* --- surfaces ------------------------------------------------ */
+[data-theme='clinical'] .bg-white {
+  background-color: var(--c-surface) !important;
+}
+[data-theme='clinical'] .bg-white\/60,
+[data-theme='clinical'] .bg-white\/70,
+[data-theme='clinical'] .bg-white\/80 {
+  background-color: rgba(12, 19, 34, 0.86) !important;
+}
+/* gradient stops: white endpoints must not leave light patches */
+[data-theme='clinical'] .from-white {
+  --tw-gradient-from: var(--c-elevated) var(--tw-gradient-from-position);
+  --tw-gradient-to: transparent var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+[data-theme='clinical'] .via-white {
+  --tw-gradient-via: var(--c-panel, #162034) var(--tw-gradient-via-position);
+  --tw-gradient-stops: var(--tw-gradient-stops), var(--tw-gradient-via), var(--tw-gradient-to);
+}
+[data-theme='clinical'] .to-white {
+  --tw-gradient-to: var(--c-surface) var(--tw-gradient-to-position);
+}
+
+[data-theme='clinical'] .bg-ink-50,
+[data-theme='clinical'] .bg-ink-50\/70,
+[data-theme='clinical'] .bg-ink-50\/50 {
+  background-color: var(--c-bg) !important;
+}
+[data-theme='clinical'] .bg-ink-100,
+[data-theme='clinical'] .bg-ink-100\/70,
+[data-theme='clinical'] .bg-ink-100\/50 {
+  background-color: var(--c-elevated) !important;
+}
+[data-theme='clinical'] .bg-ink-200,
+[data-theme='clinical'] .bg-ink-300 {
+  background-color: var(--c-line) !important;
+}
+[data-theme='clinical'] .bg-ink-50\/40,
+[data-theme='clinical'] .bg-ink-50\/30 {
+  background-color: rgba(12, 19, 34, 0.6) !important;
+}
+[data-theme='clinical'] .bg-transparent {
+  background-color: transparent !important;
+}
+
+/* --- text ---------------------------------------------------- */
+[data-theme='clinical'] .text-ink-950,
+[data-theme='clinical'] .text-ink-900,
+[data-theme='clinical'] .text-ink-800,
+[data-theme='clinical'] .text-ink-700 {
+  color: var(--c-text) !important;
+}
+[data-theme='clinical'] .text-ink-600,
+[data-theme='clinical'] .text-ink-500 {
+  color: var(--c-text-2) !important;
+}
+[data-theme='clinical'] .text-ink-400,
+[data-theme='clinical'] .text-ink-300 {
+  color: var(--c-text-3) !important;
+}
+[data-theme='clinical'] .text-ink-200 {
+  color: #c3cee2 !important;
+}
+[data-theme='clinical'] .text-white {
+  color: #f4f8ff !important;
+}
+
+/* --- borders / rings ---------------------------------------- */
+[data-theme='clinical'] .border-ink-100 {
+  border-color: var(--c-line-soft) !important;
+}
+[data-theme='clinical'] .border-ink-200,
+[data-theme='clinical'] .border-ink-300 {
+  border-color: var(--c-line) !important;
+}
+[data-theme='clinical'] .divide-ink-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--c-line-soft) !important;
+}
+[data-theme='clinical'] .divide-ink-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--c-line) !important;
+}
+[data-theme='clinical'] .ring-ink-200,
+[data-theme='clinical'] .ring-ink-300 {
+  --tw-ring-color: var(--c-line) !important;
+}
+
+/* --- status tints (red critical / orange warning / green done / cyan) */
+[data-theme='clinical'] .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.14) !important;
+}
+[data-theme='clinical'] .bg-red-100 {
+  background-color: rgba(239, 68, 68, 0.22) !important;
+}
+[data-theme='clinical'] .bg-amber-50,
+[data-theme='clinical'] .bg-orange-50,
+[data-theme='clinical'] .bg-yellow-50 {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+}
+[data-theme='clinical'] .bg-green-50,
+[data-theme='clinical'] .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.14) !important;
+}
+[data-theme='clinical'] .bg-blue-50,
+[data-theme='clinical'] .bg-brand-50 {
+  background-color: rgba(37, 99, 235, 0.16) !important;
+}
+[data-theme='clinical'] .border-red-200 {
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+[data-theme='clinical'] .border-amber-200,
+[data-theme='clinical'] .border-orange-200,
+[data-theme='clinical'] .border-yellow-200 {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+[data-theme='clinical'] .border-green-200,
+[data-theme='clinical'] .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+[data-theme='clinical'] .border-brand-200 {
+  border-color: rgba(37, 99, 235, 0.4) !important;
+}
+
+/* --- component classes -------------------------------------- */
+[data-theme='clinical'] .card,
+[data-theme='clinical'] .stat-card,
+[data-theme='clinical'] .table-wrap {
+  background-color: var(--c-surface);
+  border-color: var(--c-line);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+[data-theme='clinical'] .input,
+[data-theme='clinical'] .select,
+[data-theme='clinical'] textarea,
+[data-theme='clinical'] select {
+  background-color: var(--c-bg);
+  border-color: var(--c-line);
+  color: var(--c-text);
+}
+[data-theme='clinical'] .input::placeholder,
+[data-theme='clinical'] textarea::placeholder {
+  color: var(--c-text-3);
+}
+[data-theme='clinical'] select option {
+  background-color: var(--c-surface);
+  color: var(--c-text);
+}
+[data-theme='clinical'] .label {
+  color: var(--c-text-2);
+}
+[data-theme='clinical'] .btn-secondary {
+  background-color: var(--c-elevated);
+  color: var(--c-text-2);
+  --tw-ring-color: var(--c-line);
+}
+[data-theme='clinical'] .btn-ghost {
+  color: var(--c-text-2);
+}
+[data-theme='clinical'] .btn-primary {
+  background-color: var(--c-active);
+}
+[data-theme='clinical'] .kbd {
+  background-color: var(--c-elevated);
+  border-color: var(--c-line);
+  color: var(--c-text-2);
+}
+[data-theme='clinical'] .table thead th {
+  background-color: rgba(17, 26, 43, 0.85);
+  border-color: var(--c-line);
+  color: var(--c-text-3);
+}
+[data-theme='clinical'] .table tbody td {
+  border-color: var(--c-line-soft);
+  color: var(--c-text-2);
+}
+[data-theme='clinical'] .table tbody tr:hover {
+  background-color: rgba(37, 99, 235, 0.08) !important;
+}
+[data-theme='clinical'] .divider {
+  border-color: var(--c-line-soft);
+}
+[data-theme='clinical'] .badge {
+  border: 1px solid var(--c-line);
+}
+
+/* --- focus + scrollbars -------------------------------------- */
+[data-theme='clinical'] *:focus-visible {
+  --tw-ring-offset-color: var(--c-bg);
+}
+[data-theme='clinical'] .ring-offset-white,
+[data-theme='clinical'] .ring-offset-1 {
+  --tw-ring-offset-color: var(--c-bg);
+}
+[data-theme='clinical'] *::-webkit-scrollbar-thumb {
+  background-color: #24324c;
+}
+[data-theme='clinical'] *::-webkit-scrollbar-thumb:hover {
+  background-color: #31436a;
+}
+[data-theme='clinical'] ::selection {
+  background: rgba(34, 211, 238, 0.25);
+  color: #eaf6ff;
+}
+
+/* --- hover utilities that Tailwind escapes ------------------- */
+[data-theme='clinical'] .hover\:bg-ink-50:hover,
+[data-theme='clinical'] .hover\:bg-ink-100:hover {
+  background-color: var(--c-elevated) !important;
+}
+[data-theme='clinical'] .hover\:bg-brand-50:hover,
+[data-theme='clinical'] .hover\:bg-brand-50\/40:hover {
+  background-color: var(--c-active-soft) !important;
+}
+[data-theme='clinical'] .hover\:text-ink-900:hover,
+[data-theme='clinical'] .hover\:text-ink-800:hover {
+  color: #ffffff !important;
+}
+[data-theme='clinical'] .hover\:text-ink-700:hover,
+[data-theme='clinical'] .hover\:text-ink-600:hover {
+  color: var(--c-text) !important;
+}
+[data-theme='clinical'] .hover\:border-ink-300:hover,
+[data-theme='clinical'] .hover\:ring-ink-300:hover {
+  border-color: #2b3a58 !important;
+  --tw-ring-color: #2b3a58 !important;
+}
+
+/* --- print always stays on white paper ----------------------- */
+@media print {
+  [data-theme='clinical'] body,
+  [data-theme='clinical'] #root {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+}

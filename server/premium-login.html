@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ZhanX HospitalOS - Clinical Command Login</title>
+<style>
+:root{--bg:#020a18;--line:#164b78;--blue:#087CFF;--cyan:#00C8FF;--txt:#f5f9ff;--mut:#8fa9c4;--crisp:#ff2d55}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:"Inter",-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:var(--txt);background:var(--bg);overflow:hidden;-webkit-font-smoothing:antialiased}
+.scene{position:fixed;inset:0;z-index:0;background:linear-gradient(160deg,#040b1c 0%,#071735 48%,#0d2a58 100%)}
+.scene svg.sc{position:absolute;inset:0;width:100%;height:100%}
+.shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(2,11,24,.9) 0%,rgba(2,11,24,.55) 46%,rgba(2,11,24,.28) 66%,rgba(2,11,24,.55) 100%)}
+.glowA{position:absolute;left:10%;top:-140px;width:520px;height:520px;border-radius:50%;filter:blur(110px);background:rgba(0,140,255,.18);pointer-events:none}
+.glowC{position:absolute;right:2%;bottom:-160px;width:560px;height:560px;border-radius:50%;filter:blur(120px);background:rgba(0,220,255,.10);pointer-events:none}
+.dots{position:absolute;top:46%;left:26%;width:100px;height:100px;background-image:radial-gradient(rgba(140,200,255,.4) 1.2px,transparent 1.2px);background-size:18px 18px;opacity:.25}
+.shell{position:relative;z-index:1;height:100vh;display:grid;grid-template-columns:minmax(0,1fr) 520px;align-items:center;padding-left:72px;padding-right:56px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:40px}
+.mark{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--blue),var(--cyan));display:grid;place-items:center;box-shadow:0 0 0 1px rgba(120,200,255,.3),0 10px 26px -8px rgba(0,200,255,.55)}
+.mark svg{width:22px;height:22px}
+.brand b{font-size:18px;font-weight:800;letter-spacing:-.2px}
+.brand b em{font-style:normal;color:var(--cyan)}
+.brand small{display:block;font-size:9.5px;letter-spacing:4px;color:var(--cyan);font-weight:600;margin-top:1px}
+.eyebrow{font-size:10px;letter-spacing:5px;color:var(--cyan);font-weight:600;margin-bottom:15px}
+.hero h1{font-size:50px;line-height:1.07;font-weight:800;letter-spacing:-1.4px}
+.hero h1 span{color:var(--cyan)}
+.hero p{max-width:520px;margin-top:17px;font-size:15.5px;line-height:1.6;color:#c5d7ea}
+.feats{display:grid;grid-template-columns:repeat(2,minmax(0,240px));gap:22px 28px;margin-top:36px}
+.feat{display:flex;gap:11px;align-items:flex-start}
+.feat .fi{width:38px;height:38px;border-radius:50%;border:1.5px solid rgba(0,200,255,.45);display:grid;place-items:center;color:var(--cyan);flex:none}
+.feat .fi svg{width:18px;height:18px}
+.feat b{font-size:13px;font-weight:700;display:block}
+.feat span{font-size:11.5px;color:var(--mut)}
+.stats{display:flex;margin-top:44px;max-width:560px;background:rgba(5,18,42,.72);border:1px solid rgba(22,75,120,.55);border-radius:14px;padding:16px 8px;backdrop-filter:blur(14px)}
+.stat{flex:1;text-align:center;position:relative}
+.stat+.stat::before{content:"";position:absolute;left:0;top:10%;height:80%;width:1px;background:rgba(200,230,255,.16)}
+.stat b{font-size:24px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.stat span{display:block;margin-top:3px;font-size:10.5px;color:#7fb1d9;letter-spacing:.6px}
+.panel{width:100%;max-width:470px;justify-self:end}
+.card{background:rgba(7,26,45,.84);border:1px solid rgba(22,75,120,.75);border-radius:22px;backdrop-filter:blur(18px);box-shadow:0 34px 90px -20px rgba(0,0,0,.75),0 0 0 1px rgba(140,200,255,.06),inset 0 1px 0 rgba(255,255,255,.05);padding:38px 36px 30px}
+.card h2{font-size:28px;font-weight:800;letter-spacing:-.5px}
+.card .sub{color:var(--mut);font-size:13px;margin:6px 0 24px}
+label{display:block;font-size:12px;color:#bcd2ea;font-weight:600;margin:15px 0 7px}
+.inwrap{position:relative}
+.inwrap>svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:#6f9ac8}
+.inwrap input{width:100%;height:49px;background:rgba(4,16,34,.9);border:1px solid #164b78;border-radius:12px;padding:0 44px 0 42px;color:var(--txt);font-size:14px;outline:none;transition:border-color .18s,box-shadow .18s}
+.inwrap input::placeholder{color:#55779e}
+.inwrap input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,200,255,.16),0 0 16px rgba(0,140,255,.25)}
+.eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:0;color:#7fb1d9;cursor:pointer;padding:6px}
+.eye svg{width:17px;height:17px;display:block}
+.row{display:flex;align-items:center;justify-content:space-between;margin:16px 0 20px}
+.remember{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#a9c2dc;cursor:pointer}
+.remember input{width:15px;height:15px;accent-color:var(--blue)}
+.forgot{font-size:12.5px;color:var(--cyan);background:none;border:0;cursor:pointer;font-weight:600}
+.forgot:hover{text-decoration:underline}
+.btn{width:100%;height:55px;border:0;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--blue),#00a3e8);box-shadow:0 12px 30px -8px rgba(0,150,255,.55),inset 0 1px 0 rgba(255,255,255,.2);transition:transform .16s,box-shadow .16s,filter .16s}
+.btn:hover{filter:brightness(1.1);box-shadow:0 16px 36px -8px rgba(0,150,255,.7);transform:translateY(-1px)}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.err{display:none;align-items:center;gap:9px;background:rgba(255,50,70,.12);border:1px solid rgba(255,70,90,.4);border-radius:10px;padding:11px 13px;margin-top:15px;font-size:12.5px;color:#ff8ba0}
+.err.show{display:flex}
+.err svg{width:15px;height:15px;flex:none}
+.spin{width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;display:inline-block;vertical-align:-3px;margin-right:9px;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.secure{display:flex;align-items:center;gap:11px;margin-top:20px;padding:12px 14px;border:1px solid rgba(0,200,255,.22);background:rgba(4,16,34,.55);border-radius:12px}
+.secure svg{width:18px;height:18px;color:var(--cyan);flex:none}
+.secure b{font-size:12.5px;font-weight:700;display:block}
+.secure span{font-size:11px;color:var(--mut)}
+.sys{position:absolute;left:72px;bottom:26px;display:flex;align-items:center;gap:7px;font-size:11px;color:var(--cyan);font-weight:600}
+.sys .dot{width:7px;height:7px;border-radius:50%;background:#18d68a;box-shadow:0 0 8px #18d68a}
+@media(max-width:1180px){.shell{grid-template-columns:1fr;padding:24px}.hero{display:none}.stats{display:none}.brand{display:none}.sys{left:24px;bottom:18px}.panel{justify-self:center}}
+</style>
+</head>
+<body>
+<div class="scene" aria-hidden="true">
+  <svg class="sc" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="sky1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040b1c"/><stop offset=".55" stop-color="#071735"/><stop offset="1" stop-color="#0a2450"/></linearGradient>
+      <radialGradient id="glowR"><stop offset="0" stop-color="#ff4d6d" stop-opacity=".6"/><stop offset="1" stop-color="#ff4d6d" stop-opacity="0"/></radialGradient>
+      <linearGradient id="moon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef6ff"/><stop offset="1" stop-color="#cfe2f5"/></linearGradient>
+    </defs>
+    <rect width="1600" height="900" fill="url(#sky1)"/>
+    <g fill="#cfe4ff" opacity=".5"><circle cx="120" cy="60" r="1.4"/><circle cx="340" cy="90" r="1"/><circle cx="520" cy="45" r="1.5"/><circle cx="760" cy="110" r="1"/><circle cx="900" cy="40" r="1.6"/><circle cx="1120" cy="75" r="1"/><circle cx="1350" cy="55" r="1.4"/><circle cx="1480" cy="100" r="1.2"/><circle cx="220" cy="150" r="1"/><circle cx="630" cy="160" r="1.3"/><circle cx="1010" cy="120" r="1"/><circle cx="1560" cy="130" r="1.1"/></g>
+    <circle cx="1240" cy="140" r="52" fill="url(#moon)" opacity=".85"/>
+    <circle cx="1262" cy="128" r="42" fill="#071735" opacity=".55"/>
+    <g fill="#0a2145" opacity=".85"><rect x="30" y="300" width="120" height="330"/><rect x="160" y="260" width="90" height="370"/><rect x="260" y="330" width="110" height="300"/><rect x="420" y="240" width="70" height="390"/><rect x="500" y="310" width="120" height="320"/><rect x="640" y="270" width="80" height="360"/><rect x="1160" y="250" width="100" height="380"/><rect x="1270" y="320" width="120" height="310"/><rect x="1400" y="280" width="90" height="350"/></g>
+    <g fill="#ffd36b" opacity=".22"><g><rect x="46" y="322" width="10" height="14"/><rect x="70" y="322" width="10" height="14"/><rect x="94" y="322" width="10" height="14"/><rect x="46" y="356" width="10" height="14"/><rect x="94" y="356" width="10" height="14"/><rect x="70" y="390" width="10" height="14"/></g><g><rect x="176" y="282" width="9" height="13"/><rect x="198" y="282" width="9" height="13"/><rect x="176" y="310" width="9" height="13"/><rect x="198" y="338" width="9" height="13"/></g><g><rect x="436" y="282" width="10" height="14"/><rect x="460" y="282" width="10" height="14"/><rect x="436" y="320" width="10" height="14"/><rect x="460" y="320" width="10" height="14"/></g></g>
+    <g>
+      <rect x="120" y="180" width="560" height="450" fill="#0d2b58"/>
+      <rect x="120" y="168" width="560" height="26" fill="#ffd9c3" opacity=".14"/>
+      <g fill="#123c78"><rect x="150" y="210" width="46" height="58"/><rect x="214" y="210" width="46" height="58"/><rect x="278" y="210" width="46" height="58"/><rect x="342" y="210" width="46" height="58"/><rect x="406" y="210" width="46" height="58"/><rect x="470" y="210" width="46" height="58"/><rect x="534" y="210" width="46" height="58"/><rect x="598" y="210" width="46" height="58"/><rect x="150" y="286" width="46" height="58"/><rect x="214" y="286" width="46" height="58"/><rect x="278" y="286" width="46" height="58"/><rect x="342" y="286" width="46" height="58"/><rect x="406" y="286" width="46" height="58"/><rect x="470" y="286" width="46" height="58"/><rect x="534" y="286" width="46" height="58"/><rect x="598" y="286" width="46" height="58"/><rect x="150" y="362" width="46" height="58"/><rect x="214" y="362" width="46" height="58"/><rect x="278" y="362" width="46" height="58"/><rect x="342" y="362" width="46" height="58"/><rect x="406" y="362" width="46" height="58"/><rect x="470" y="362" width="46" height="58"/><rect x="534" y="362" width="46" height="58"/><rect x="598" y="362" width="46" height="58"/><rect x="150" y="438" width="46" height="58"/><rect x="214" y="438" width="46" height="58"/><rect x="278" y="438" width="46" height="58"/><rect x="342" y="438" width="46" height="58"/><rect x="406" y="438" width="46" height="58"/><rect x="470" y="438" width="46" height="58"/><rect x="534" y="438" width="46" height="58"/><rect x="598" y="438" width="46" height="58"/></g>
+      <g fill="#d9ecff"><rect x="150" y="210" width="46" height="58"/><rect x="278" y="286" width="46" height="58"/><rect x="406" y="362" width="46" height="58"/><rect x="534" y="210" width="46" height="58"/><rect x="214" y="438" width="46" height="58"/></g>
+    </g>
+    <g>
+      <rect x="760" y="96" width="540" height="84" fill="#0e2c5a"/>
+      <g fill="#cfe4ff" opacity=".16"><rect x="792" y="112" width="34" height="18"/><rect x="846" y="112" width="34" height="18"/><rect x="900" y="112" width="34" height="18"/><rect x="954" y="112" width="34" height="18"/><rect x="1008" y="112" width="34" height="18"/><rect x="1062" y="112" width="34" height="18"/><rect x="1116" y="112" width="34" height="18"/><rect x="1170" y="112" width="34" height="18"/><rect x="1224" y="112" width="34" height="18"/></g>
+      <rect x="1200" y="180" width="100" height="450" fill="#0c2854"/>
+      <g fill="#154580" opacity=".6"><rect x="1216" y="210" width="30" height="40"/><rect x="1256" y="210" width="30" height="40"/><rect x="1216" y="272" width="30" height="40"/><rect x="1256" y="272" width="30" height="40"/><rect x="1216" y="334" width="30" height="40"/><rect x="1256" y="334" width="30" height="40"/><rect x="1216" y="396" width="30" height="40"/><rect x="1256" y="396" width="30" height="40"/></g>
+      <g fill="#ffd36b" opacity=".4"><rect x="1242" y="220" width="14" height="20"/><rect x="1242" y="282" width="14" height="20"/><rect x="1242" y="344" width="14" height="20"/><rect x="1242" y="406" width="14" height="20"/></g>
+    </g>
+    <g>
+      <rect x="640" y="220" width="430" height="410" fill="#0a2145"/>
+      <g fill="#15457a"><rect x="664" y="248" width="36" height="44"/><rect x="712" y="248" width="36" height="44"/><rect x="912" y="248" width="36" height="44"/><rect x="960" y="248" width="36" height="44"/><rect x="664" y="312" width="36" height="44"/><rect x="960" y="312" width="36" height="44"/><rect x="664" y="376" width="36" height="44"/><rect x="960" y="376" width="36" height="44"/><rect x="664" y="440" width="36" height="44"/><rect x="960" y="440" width="36" height="44"/></g>
+      <g fill="#d9ecff"><rect x="664" y="248" width="36" height="44"/><rect x="960" y="248" width="36" height="44"/><rect x="860" y="376" width="36" height="44"/></g>
+      <circle cx="918" cy="348" r="8" fill="#ffd36b" opacity=".55"/>
+    </g>
+    <g>
+      <rect x="100" y="600" width="150" height="120" fill="#071a2d"/>
+      <g fill="#ff4d6d"><path d="M175 604v-34l-6 19-6-19-5 22-5-22v34z"/></g>
+      <rect x="150" y="650" width="54" height="70" fill="#0a1f3d"/>
+    </g>
+    <path d="M180 900V720" stroke="#c8e4ff" stroke-width="26" stroke-opacity=".05"/>
+    <path d="M430 900V760" stroke="#c8e4ff" stroke-width="26" stroke-opacity=".05"/>
+    <path d="M1060 900V700" stroke="#c8e4ff" stroke-width="26" stroke-opacity=".05"/>
+    <rect y="700" width="1600" height="200" fill="#050e22"/>
+    <path d="M0 758h1600" stroke="#ffd36b" stroke-width="2" opacity=".14" stroke-dasharray="30 26"/>
+    <rect x="0" y="790" width="1600" height="110" fill="#041020"/>
+    <g stroke="#12395e" stroke-width="7" fill="none" stroke-linecap="round"><path d="M580 560v160"/><path d="M1280 540v180"/></g>
+    <g fill="#0e2c5a"><path d="M580 470c-18 34-40 52-66 62l4-14c18-14 34-28 44-46z"/><path d="M580 470c18 34 40 52 66 62l-4-14c-18-14-34-28-44-46z"/><path d="M580 480c-26 22-56 34-86 38l6-14c22-8 46-16 62-30z"/><path d="M580 486c26 22 56 34 84 40l-2-16c-22-6-44-16-58-30z"/></g>
+    <g transform="translate(700,0)"><g fill="#0e2c5a"><path d="M580 470c-18 34-40 52-66 62l4-14c18-14 34-28 44-46z"/><path d="M580 470c18 34 40 52 66 62l-4-14c-18-14-34-28-44-46z"/></g></g>
+    <rect x="1100" y="560" width="420" height="62" rx="8" fill="#f4f8ff"/>
+    <rect x="1100" y="560" width="420" height="24" rx="8" fill="#d9e6f5"/>
+    <circle cx="1134" cy="636" r="22" fill="#0a1730"/><circle cx="1486" cy="636" r="22" fill="#0a1730"/>
+    <circle cx="1134" cy="634" r="12" fill="#9fb2c9"/><circle cx="1486" cy="634" r="12" fill="#9fb2c9"/>
+    <rect x="1250" y="520" width="12" height="40" fill="#ff2d55"/>
+    <g fill="#ff2d55"><rect x="1280" y="580" width="14" height="10" rx="2"/><rect x="1312" y="580" width="14" height="10" rx="2"/></g>
+  </svg>
+  <div class="shade"></div>
+  <div class="glowA"></div><div class="glowC"></div><div class="dots"></div>
+</div>
+
+<div class="shell">
+  <div>
+    <div class="brand">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+      <div><b>ZhanX <em>HospitalOS</em></b><small>CLINICAL COMMAND</small></div>
+    </div>
+    <div class="eyebrow">HOSPITAL MANAGEMENT SYSTEM</div>
+    <div class="hero">
+      <h1>Unified Care.<br/><span>Smarter Operations.</span></h1>
+      <p>ZhanX HospitalOS brings every part of your hospital - patients, staff, pharmacy, lab, billing and operations - into one secure, intelligent command center.</p>
+    </div>
+    <div class="feats">
+      <div class="feat"><div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2"/></svg></div><div><b>Patient Care</b><span>Better outcomes</span></div></div>
+      <div class="feat"><div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></div><div><b>Operational</b><span>Efficiency at scale</span></div></div>
+      <div class="feat"><div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div><div><b>Data Security</b><span>Your data, protected</span></div></div>
+      <div class="feat"><div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14"/></svg></div><div><b>Growth Ready</b><span>Scalable platform</span></div></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>500+</b><span>BEDS</span></div>
+      <div class="stat"><b>50+</b><span>DEPARTMENTS</span></div>
+      <div class="stat"><b>200+</b><span>MEDICAL STAFF</span></div>
+      <div class="stat"><b>24/7</b><span>CARE &amp; SUPPORT</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="card">
+      <h2>Welcome Back</h2>
+      <p class="sub">Sign in to your clinical command center</p>
+      <div class="err" id="err"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span id="errtxt"></span></div>
+      <form id="form" novalidate>
+        <label for="uname">Username / Email / Employee ID</label>
+        <div class="inwrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <input id="uname" type="text" placeholder="Enter username or email" autocomplete="username" spellcheck="false" required />
+        </div>
+        <label for="pass">Password</label>
+        <div class="inwrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <input id="pass" type="password" placeholder="Enter your password" autocomplete="current-password" required />
+          <button type="button" class="eye" id="eye" aria-label="Toggle password visibility"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
+        <div class="row">
+          <label class="remember"><input type="checkbox" id="remember" /> Remember me</label>
+          <button type="button" class="forgot" id="forgot">Forgot password?</button>
+        </div>
+        <button type="submit" class="btn" id="btn">Sign In &rarr;</button>
+      </form>
+      <div class="secure">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+        <div><b>Secure Login</b><span>Protected with enterprise-grade security</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sys"><span class="dot"></span>HospitalOS Systems Online</div>
+
+<script>
+(function(){
+  var API='/api/auth/login';
+  var form=document.getElementById('form'),uname=document.getElementById('uname'),pass=document.getElementById('pass');
+  var btn=document.getElementById('btn'),remember=document.getElementById('remember'),eye=document.getElementById('eye');
+  var err=document.getElementById('err'),errtxt=document.getElementById('errtxt');
+  function showErr(m){ errtxt.textContent=m; err.style.display='flex'; }
+  function hideErr(){ err.style.display='none'; }
+  eye.addEventListener('click',function(){ var o=pass.type==='password'; pass.type=o?'text':'password'; eye.style.opacity=o?'1':'.55'; });
+  document.getElementById('forgot').addEventListener('click',function(){ showErr('Please contact your hospital administrator to reset your password.'); setTimeout(hideErr,3000); });
+  function loading(on){ btn.disabled=on; btn.innerHTML=on?'<span class="spin"></span>Signing in...':'Sign In &rarr;'; }
+  form.addEventListener('submit',function(e){
+    e.preventDefault(); hideErr();
+    var u=uname.value.trim(),p=pass.value;
+    if(!u||!p){ showErr('Please enter your username and password.'); return; }
+    loading(true);
+    fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,status:r.status,j:j};});})
+      .then(function(res){
+        loading(false);
+        if(!res.ok){
+          var msg=(res.j&&res.j.error)||(res.j&&res.j.message)||'Invalid username or password.';
+          if(res.status===401) msg='Invalid username or password.';
+          if(res.status===403) msg='Your account is disabled. Contact your administrator.';
+          showErr(msg); if(res.status===401) uname.focus(); return;
+        }
+        var d=res.j.data||res.j||{};
+        var me=(typeof d.user==='object'&&d.user)?d.user:d;
+        if(d.accessToken) try{localStorage.setItem('tm_access',d.accessToken);}catch(_){}
+        if(d.refreshToken) try{localStorage.setItem('tm_refresh',d.refreshToken);}catch(_){}
+        if(me&&me._id) try{localStorage.setItem('tm_user',JSON.stringify(me));}catch(_){}
+        btn.innerHTML='<span class="spin"></span>Success - redirecting...';
+        var role=''+(me.roleCode||me.role||'');
+        var map={'SUPER_ADMIN':'/admin','HOSPITAL_ADMIN':'/admin','ADMIN':'/admin','OPERATIONS_ADMIN':'/admin','DOCTOR':'/doctor/dashboard','NURSE':'/nurse/dashboard','RECEPTIONIST':'/reception/dashboard','RECEPTION':'/reception/dashboard','PHARMACIST':'/pharmacy/dashboard','LAB_TECHNICIAN':'/lab/dashboard','LABTECH':'/lab/dashboard','BILLING_STAFF':'/billing/dashboard','BILLING':'/billing/dashboard','ACCOUNTANT':'/accounts/dashboard','STORE_MANAGER':'/store/dashboard'};
+        var dest=map[role.toUpperCase()]||(role?('/'+role.toLowerCase()):'/dashboard');
+        setTimeout(function(){ window.location.href=dest; },300);
+      })
+      .catch(function(){ loading(false); showErr('Unable to reach the server. Please try again.'); });
+  });
+  try{ var cr=JSON.parse(localStorage.getItem('tm_remember')||'null'); if(cr&&cr.u){ uname.value=cr.u; remember.checked=true; } }catch(_){}
+  remember.addEventListener('change',function(){ try{ if(remember.checked) localStorage.setItem('tm_remember',JSON.stringify({u:uname.value})); else localStorage.removeItem('tm_remember'); }catch(_){} });
+  uname.focus();
+})();
+</script>
+</body>
+</html>

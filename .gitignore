@@ -1,0 +1,74 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+client/dist/
+server/dist/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Uploads
+server/uploads/
+uploads/
+!client/public/uploads/
+!client/public/uploads/**
+
+# Local MongoDB data directories (live patient records - NEVER commit)
+.mongo-data/
+data/mongo/
+data/mongo-*/
+*.wt
+mongod.lock
+storage.bson
+WiredTiger*
+
+# Local tooling / agent scratch dirs
+.opencode/
+.opencode-boot/
+
+# Scratch files at repo root
+/tmp-*
+/v.out
+/v.err
+/b.out
+/b.err
+*.out
+*.err
+/build-log.txt
+/build2.txt
+/__truth*.mjs
+/client/__truth*.mjs
+/client/build-log.txt
+/client/build2.txt
+/erp-api-probe.mjs
+
+# Unreferenced duplicate of client/public/bg_img.png
+/bg_img.png
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Temp
+temp/
+*.tmp
