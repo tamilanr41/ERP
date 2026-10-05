@@ -9,10 +9,13 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "seed": "node src/seed/seed.js",
-    "test": "node --test \"tests/*.test.js\""
+    "test": "node --test \"tests/*.test.js\"",
+    "migrate:atlas": "node scripts/migrate-to-atlas.mjs",
+    "verify:atlas": "node scripts/verify-migration.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.5.1",
     "cors": "^2.8.5",
     "date-fns": "^4.4.0",
     "dotenv": "^16.4.5",

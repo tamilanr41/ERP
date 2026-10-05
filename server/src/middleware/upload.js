@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import config from '../config/index.js';
 import { BadRequestError } from '../utils/ApiError.js';
+import logger from '../config/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '../..');
@@ -23,6 +24,8 @@ export const ALLOWED_MIME = {
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
 };
 
+const provider = String(config.upload.provider || 'local').toLowerCase();
+
 const uploadDir = path.join(rootDir, config.upload.localDir);
 fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -35,11 +38,19 @@ const fileFilter = (req, file, cb) => {
   cb(new BadRequestError(`File type not allowed: ${file.mimetype}`));
 };
 
-const storage = multer.diskStorage({
+const requestedDir = (req) => {
+  const subDir = (req.query && req.query.dir) || 'documents';
+  return String(subDir)
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter((seg) => seg && seg !== '.' && seg !== '..')
+    .join('/')
+    .slice(0, 120);
+};
+
+const localStorage = multer.diskStorage({
   destination(req, file, cb) {
-    const subDir = (req.query && req.query.dir) || 'documents';
-    const safe = path.normalize(subDir).replace(/^(\.\.(\/|\\|$))+/, '');
-    const target = path.join(uploadDir, safe);
+    const target = path.join(uploadDir, requestedDir(req));
     fs.mkdirSync(target, { recursive: true });
     cb(null, target);
   },
@@ -49,22 +60,95 @@ const storage = multer.diskStorage({
   },
 });
 
+let cloudinaryStorage = null;
+
+/**
+ * Cloudinary is used when UPLOAD_PROVIDER=cloudinary. Local disk is ephemeral on
+ * Render/Railway, so anything written to server/uploads disappears on the next
+ * deploy and previously stored /uploads paths 404. The SDK is imported lazily so
+ * local development keeps working without the dependency loaded.
+ */
+const getCloudinaryStorage = async () => {
+  if (cloudinaryStorage) return cloudinaryStorage;
+
+  const { cloudName, apiKey, apiSecret } = config.cloudinary || {};
+  const missing = [
+    !cloudName && 'CLOUDINARY_CLOUD_NAME',
+    !apiKey && 'CLOUDINARY_API_KEY',
+    !apiSecret && 'CLOUDINARY_API_SECRET',
+  ].filter(Boolean);
+
+  if (missing.length) {
+    throw new Error(
+      `UPLOAD_PROVIDER=cloudinary requires ${missing.join(', ')} to be set on the server`
+    );
+  }
+
+  const { v2: cloudinary } = await import('cloudinary');
+  cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
+
+  cloudinaryStorage = {
+    _handleFile(req, file, cb) {
+      const folder = `hospital-erp/${requestedDir(req)}`;
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          resource_type: 'auto',
+          public_id: `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`,
+        },
+        (err, result) => {
+          if (err || !result) {
+            return cb(err || new Error('Cloudinary upload failed'));
+          }
+          // Store the absolute URL so existing consumers (e.g.
+          // patient.controller fileUrl) work without knowing the provider.
+          file.publicPath = result.secure_url;
+          file.cloudinaryPublicId = result.public_id;
+          cb(null, { public_id: result.public_id, secure_url: result.secure_url });
+        }
+      );
+      file.stream.on('error', cb);
+      file.stream.pipe(stream);
+    },
+    _removeFile(req, file, cb) {
+      if (!file?.cloudinaryPublicId) return cb(null);
+      cloudinary.uploader
+        .destroy(file.cloudinaryPublicId, { resource_type: 'auto' })
+        .then(() => cb(null))
+        .catch((e) => cb(e));
+    },
+  };
+
+  logger.info('Upload provider', { provider: 'cloudinary', folder });
+  return cloudinaryStorage;
+};
+
+const resolveStorage = (req, res, next) => {
+  if (provider !== 'cloudinary') return next(null, localStorage);
+  getCloudinaryStorage().then((s) => next(null, s), next);
+};
+
 /**
  * upload middleware. Use fieldName e.g. "file", "photo".
- * provider abstraction used when storing references.
  */
 export const uploader = (fieldName = 'file', maxCount = 1) => (req, res, next) => {
-  const instance = multer({ storage, limits, fileFilter });
-  const handle = maxCount > 1 ? instance.array(fieldName, maxCount) : instance.single(fieldName);
-  handle(req, res, (err) => {
+  resolveStorage(req, res, (err, storage) => {
     if (err) return next(err);
-    next();
+    const instance = multer({ storage, limits, fileFilter });
+    const handle = maxCount > 1 ? instance.array(fieldName, maxCount) : instance.single(fieldName);
+    handle(req, res, (uploadErr) => {
+      if (uploadErr) return next(uploadErr);
+      next();
+    });
   });
 };
 
 export const sanitizeUpload = (req, _res, next) => {
   if (!req.file) return next();
-  req.file.publicPath = `/uploads/${path.relative(rootDir, req.file.path).replace(/\\/g, '/')}`;
+  // Cloudinary already set an absolute URL in _handleFile.
+  if (!req.file.publicPath) {
+    req.file.publicPath = `/uploads/${path.relative(rootDir, req.file.path).replace(/\\/g, '/')}`;
+  }
   next();
 };
 

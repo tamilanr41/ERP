@@ -21,12 +21,14 @@ const app = express();
 // drop the frontend out of the CORS allowlist (the browser then reports
 // "No 'Access-Control-Allow-Origin' header" with no server-side clue).
 const allowedOrigins = [
-  ...String(config.clientUrl || '')
-    .split(',')
-    .map((o) => o.trim().replace(/\/+$/, ''))
-    .filter(Boolean),
-  'http://localhost:5173',
-  'http://localhost:3000',
+  ...new Set([
+    ...String(config.clientUrl || '')
+      .split(',')
+      .map((o) => o.trim().replace(/\/+$/, ''))
+      .filter(Boolean),
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ]),
 ];
 
 const originChecker = (origin, callback) => {
@@ -37,6 +39,23 @@ const originChecker = (origin, callback) => {
 };
 
 logger.info('CORS allowlist', { origins: allowedOrigins });
+
+if (String(config.upload.provider).toLowerCase() === 'cloudinary') {
+  const missing = [
+    !config.cloudinary?.cloudName && 'CLOUDINARY_CLOUD_NAME',
+    !config.cloudinary?.apiKey && 'CLOUDINARY_API_KEY',
+    !config.cloudinary?.apiSecret && 'CLOUDINARY_API_SECRET',
+  ].filter(Boolean);
+  if (missing.length) {
+    logger.warn(
+      `UPLOAD_PROVIDER=cloudinary but credentials are missing: ${missing.join(', ')}. ` +
+        'Uploads will fail until these are set. Local disk is ephemeral on Render - ' +
+        'stored files are lost on every deploy.'
+    );
+  } else {
+    logger.info('Upload provider: cloudinary (credentials present)');
+  }
+}
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
