@@ -43,7 +43,7 @@ export const computeBillTotals = (items, extraDiscount = 0) => {
  * Core billing service: create/finalize bill with payment + ledger, transactionalially safe.
  */
 export const createBillingService = async (payload, actor, session = null) => {
-  const { patientId, billType, items, payment = null, admissionId, opdVisitId, doctorId, departmentId, billNumber = null, extraDiscount = 0, dialysisSessionId = null } = payload;
+  const { patientId, billType, items, payment = null, admissionId, opdVisitId, doctorId, departmentId, billNumber = null, extraDiscount = 0, dialysisSessionId = null, appointmentId = null } = payload;
 
   const totals = computeBillTotals(items, extraDiscount);
   const nextNumber = billNumber || await generateNumber(NUMBER_PREFIXES.BILL, new Date().getFullYear(), session);
@@ -56,6 +56,7 @@ export const createBillingService = async (payload, actor, session = null) => {
     admissionId,
     opdVisitId,
     dialysisSessionId,
+    appointmentId,
     doctorId,
     departmentId,
     billType,
@@ -245,6 +246,16 @@ export const createPaymentService = async (payload, actor, session = null) => {
   if (!bill) throw new NotFoundError('Bill not found');
   if (bill.status === BILL_STATUS.CANCELLED) throw new BadRequestError('Cannot pay a cancelled bill');
   const { bill: settled } = await recordPaymentOnBill(bill, payload, actor, session);
+
+  // A consultation bill is settled through this generic payments route, so the
+  // appointment's own paymentStatus is refreshed here. Left stale, the
+  // consultation would keep reading UNPAID after the money arrived and the
+  // pre-consultation payment gate would stay closed on a fully paid visit.
+  if (settled?.appointmentId) {
+    const { syncAppointmentPaymentState } = await import('./telemedicine.service.js');
+    await syncAppointmentPaymentState(settled._id, { session });
+  }
+
   return settled;
 };
 
@@ -275,6 +286,24 @@ export const cancelBillService = async (billId, payload = {}, actor, session = n
       await writeAudit({
         user: actor, action: 'DIALYSIS_BILL_CANCELLED', module: 'dialysis', entityId: sitting._id, entityType: 'DialysisSession',
         data: { sessionNumber: sitting.sessionNumber, billId: bill._id, billNumber: bill.billNumber, reason: payload.reason || null },
+      });
+    }
+  }
+
+  // A cancelled consultation bill must stop pointing at a dead bill too, or the
+  // appointment keeps a billId nothing can be charged against and the unique
+  // uniq_appointment_bill index refuses to let it be re-billed.
+  if (bill.appointmentId) {
+    const { default: Appointment } = await import('../models/Appointment.model.js');
+    const freed = await Appointment.findOneAndUpdate(
+      { _id: bill.appointmentId, billId: bill._id },
+      { $set: { billId: null, paymentStatus: 'UNBILLED', paidAmount: 0 } },
+      { session, new: true },
+    );
+    if (freed) {
+      await writeAudit({
+        user: actor, action: 'APPOINTMENT_BILL_CANCELLED', module: 'telemedicine', entityId: freed._id, entityType: 'Appointment',
+        data: { appointmentNumber: freed.appointmentNumber, billId: bill._id, billNumber: bill.billNumber, reason: payload.reason || null },
       });
     }
   }
@@ -377,6 +406,7 @@ if (query.patientId) filter.patientId = query.patientId;
   if (query.isFinalBill === 'true') filter.isFinalBill = true;
   if (query.isFinalBill === 'false') filter.isFinalBill = false;
   if (query.opdVisitId) filter.opdVisitId = query.opdVisitId;
+if (query.appointmentId) filter.appointmentId = query.appointmentId;
   if (query.search) {
     const r = regex(query.search);
     filter.$or = [{ billNumber: r }, { patientName: r }, { patientUHID: r }];

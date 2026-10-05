@@ -26,6 +26,7 @@ import queueRoutes from './queue.routes.js';
 import moduleRoutes from './module.routes.js';
 import platformRoutes from './platform.routes.js';
 import dialysisRoutes from './dialysis.routes.js';
+import telemedicineRoutes from './telemedicine.routes.js';
 
 const router = Router();
 
@@ -41,6 +42,7 @@ router.use('/ipd', ipdWorkflowRoutes);
 router.use('/ipd', ipdBillingRoutes);
 router.use('/ipd', ipdTransferRoutes);
 router.use('/dialysis', dialysisRoutes);
+router.use('/telemedicine', telemedicineRoutes);
 router.use('/pharmacy', pharmacyRoutes);
 router.use('/lab', labRoutes);
 router.use('/radiology', radiologyRoutes);

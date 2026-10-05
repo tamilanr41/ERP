@@ -66,6 +66,9 @@ const billSchema = new mongoose.Schema(
     // a dialysis bill has to name the sitting it charges for, otherwise the money
     // cannot be traced back to the treatment that earned it
     dialysisSessionId: { type: mongoose.Schema.Types.ObjectId, ref: 'DialysisSession', index: true },
+    // a teleconsultation bill has to name the appointment that earned it, the
+    // same way a dialysis bill names its sitting
+    appointmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', index: true },
     doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' },
     departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department' },
     billType: { type: String, enum: BILL_TYPES, required: true, index: true },
@@ -111,6 +114,22 @@ billSchema.index(
       status: { $in: [BILL_STATUS.DRAFT, BILL_STATUS.PENDING, BILL_STATUS.FINAL, BILL_STATUS.PARTIALLY_PAID, BILL_STATUS.PAID, BILL_STATUS.OVERPAID] },
     },
     name: 'uniq_dialysis_bill_per_session',
+  },
+);
+
+// One living consultation bill per appointment. Without this, a double click on
+// "generate bill" raises two bills for a single teleconsultation and the patient
+// is charged twice. Excludes CANCELLED/SUPERSEDED/REFUNDED so a cancelled bill
+// frees the appointment to be re-billed.
+billSchema.index(
+  { appointmentId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      appointmentId: { $type: 'objectId' },
+      status: { $in: [BILL_STATUS.DRAFT, BILL_STATUS.PENDING, BILL_STATUS.FINAL, BILL_STATUS.PARTIALLY_PAID, BILL_STATUS.PAID, BILL_STATUS.OVERPAID] },
+    },
+    name: 'uniq_appointment_bill',
   },
 );
 

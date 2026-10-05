@@ -20,6 +20,9 @@ const prescriptionSchema = new mongoose.Schema(
     doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
     opdVisitId: { type: mongoose.Schema.Types.ObjectId, ref: 'OpdVisit' },
     admissionId: { type: mongoose.Schema.Types.ObjectId, ref: 'IpdAdmission' },
+    // A teleconsultation has no OpdVisit row, so without this the prescription
+    // could not be traced back to the consultation that produced it.
+    appointmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment', index: true },
     prescriptionDate: { type: Date, default: Date.now, index: true },
     diagnosis: String,
     advice: String,

@@ -56,6 +56,25 @@ const config = {
     adminEmail: process.env.SEED_ADMIN_EMAIL || 'superadmin@hospital.com',
     adminPassword: process.env.SEED_ADMIN_PASSWORD || 'Admin@123',
   },
+
+  telemedicine: {
+    // When on, a teleconsultation cannot be started until the appointment fee has
+    // a bill and that bill is settled. Off by default so existing OPD-style
+    // teleconsultations are not blocked by a missing billing configuration.
+    requirePaymentBeforeConsultation:
+      String(process.env.TELEMEDICINE_REQUIRE_PAYMENT || '').toLowerCase() === 'true',
+    // Grace period, in minutes, before a booked-but-not-started teleconsultation
+    // is treated as a no-show by the sweep in telemedicine.service.
+    noShowAfterMinutes: parseInt(process.env.TELEMEDICINE_NO_SHOW_AFTER_MIN, 10) || 20,
+    // ICE servers handed to the browser. A STUN-only list works on most networks
+    // but cannot traverse symmetric NAT; a TURN entry is required for that.
+    // Left empty rather than defaulted to a public server that may not be
+    // reachable from this deployment.
+    iceServers: String(process.env.TELEMEDICINE_ICE_SERVERS || '')
+      .split('|')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  },
 };
 
 export default config;

@@ -129,6 +129,26 @@ permissionSchema.statics.ensureDefaults = async function () {
     ['NOTIFICATION_VIEW', 'system', 'View notifications'],
     // Blood bank
     ['BLOOD_MANAGE', 'bloodbank', 'Manage blood bank'],
+    // Telemedicine / teleconsultation
+    ['TELEMEDICINE_VIEW', 'telemedicine', 'View teleconsultation appointments and rooms'],
+    // Held by the PATIENT role. It grants nothing on its own — joining is
+    // authorised by ownership of the appointment, and this only lets the route
+    // through to the service that performs that check.
+    ['TELEMEDICINE_JOIN_OWN', 'telemedicine', 'Join a teleconsultation you are the patient for'],
+    // Kept apart from TELEMEDICINE_VIEW on purpose: booking a consultation is a
+    // clinical act that commits a doctor and a fee, not a read of the schedule.
+    ['TELEMEDICINE_BOOK', 'telemedicine', 'Book teleconsultation appointments'],
+    ['TELEMEDICINE_EDIT', 'telemedicine', 'Reschedule or cancel teleconsultation appointments'],
+    // Starting, ending and writing clinical notes during a live consultation.
+    ['TELEMEDICINE_CONSULT', 'telemedicine', 'Start and end teleconsultations and record clinical findings'],
+    // A patient joining their own room has no staff role and no permission row at
+    // all, so this exists to describe staff-side entry to a specific room.
+    ['TELEMEDICINE_JOIN_ANY', 'telemedicine', 'Join any teleconsultation room (supervisor / observer)'],
+    ['TELEMEDICINE_BILLING', 'telemedicine', 'Generate and settle teleconsultation bills'],
+    // Separate from billing: waiving money is a supervisor decision and must be
+    // auditable on its own, not something a billing clerk inherits.
+    ['TELEMEDICINE_FEE_WAIVE', 'telemedicine', 'Waive a teleconsultation fee'],
+    ['TELEMEDICINE_RECORD_VIEW', 'telemedicine', 'View teleconsultation audit records'],
   ];
 
   for (const [code, module, description] of defaults) {
