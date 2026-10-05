@@ -52,7 +52,13 @@ export function useIpdRealtime({ admissionId, enabled = true } = {}) {
 
     const connect = () => {
       if (closed) return;
-      const base = window.location.origin;
+      // On Netlify the page origin is the static site, not the API, so
+      // window.location.origin would connect to Netlify and never reach
+      // Socket.IO. Prefer VITE_SOCKET_URL, else derive it from VITE_API_URL.
+      const base = import.meta.env.VITE_SOCKET_URL
+        || (import.meta.env.VITE_API_URL
+          ? new URL(import.meta.env.VITE_API_URL).origin
+          : window.location.origin);
       socket = import('socket.io-client').then(({ io }) => {
         if (closed) return null;
         const s = io(base, { auth: { token }, transports: ['websocket', 'polling'] });
