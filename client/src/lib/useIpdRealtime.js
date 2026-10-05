@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { getToken } from './api';
+import { getToken, API_BASE_URL } from './api';
 
 const IPD_EVENTS = [
   'ipd:bed_updated',
@@ -54,11 +54,10 @@ export function useIpdRealtime({ admissionId, enabled = true } = {}) {
       if (closed) return;
       // On Netlify the page origin is the static site, not the API, so
       // window.location.origin would connect to Netlify and never reach
-      // Socket.IO. Prefer VITE_SOCKET_URL, else derive it from VITE_API_URL.
+      // Socket.IO. API_BASE_URL is already resolved with the deployed-origin
+      // fallback, so prefer an explicit override, else derive from that.
       const base = import.meta.env.VITE_SOCKET_URL
-        || (import.meta.env.VITE_API_URL
-          ? new URL(import.meta.env.VITE_API_URL).origin
-          : window.location.origin);
+        || (API_BASE_URL.startsWith('http') ? new URL(API_BASE_URL).origin : window.location.origin);
       socket = import('socket.io-client').then(({ io }) => {
         if (closed) return null;
         const s = io(base, { auth: { token }, transports: ['websocket', 'polling'] });

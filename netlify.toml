@@ -6,6 +6,10 @@
 [build.environment]
   NODE_VERSION = "22"
   NPM_FLAGS = "--no-audit --no-fund"
+  # Baked into the bundle at build time. This is the public API origin, not a
+  # secret. Set it here rather than only in the dashboard so a rebuild cannot
+  # silently ship a console that points at itself.
+  VITE_API_URL = "https://erp-ci2w.onrender.com/api"
 
 # SPA fallback: React Router deep links (e.g. /dialysis/session/123, /login)
 # are not real files, so serve index.html. force=false means real static

@@ -1,10 +1,36 @@
 import axios from 'axios';
 
-// Local dev: Vite proxies /api to http://localhost:5000 (see vite.config.js).
-// Netlify: set VITE_API_URL in the site's build environment to the API origin,
-// e.g. https://your-api.onrender.com/api
+/**
+ * The deployed API origin. Not a secret - it ships inside the JS bundle either
+ * way - so it is held here as a safety net rather than only in the host's build
+ * settings, where forgetting it fails silently.
+ */
+export const DEFAULT_API_ORIGIN = 'https://erp-ci2w.onrender.com/api';
+
+const isLocalDev = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+
+/**
+ * Resolved base URL.
+ *
+ * Local dev: Vite proxies /api to the local server (see vite.config.js).
+ * Deployed: the page is served from the static host and the API from a different
+ * origin, so a relative '/api' would be sent to the static host - whose SPA
+ * fallback answers every such request with index.html. Login then fails with a
+ * confusing HTML parse error and nothing pointing at the base URL. Falling back
+ * to the known origin turns that silent failure into a working build.
+ */
+export const API_BASE_URL = import.meta.env.VITE_API_URL || (isLocalDev ? '/api' : DEFAULT_API_ORIGIN);
+
+if (!import.meta.env.VITE_API_URL && !isLocalDev) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[api] VITE_API_URL is not set for this build; falling back to ${DEFAULT_API_ORIGIN}. ` +
+      'Set VITE_API_URL in the host build environment if the API moves.',
+  );
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: API_BASE_URL,
   timeout: 30000,
 });
 
