@@ -1,0 +1,41 @@
+# Render blueprint for the Hospital ERP API (Express + MongoDB + Socket.IO).
+#
+# NOTE: Blueprints apply only to services created via New -> Blueprint.
+# For an EXISTING service, set these values in the dashboard instead:
+#   Root Directory : server
+#   Build Command  : npm ci --omit=dev
+#   Start Command  : npm start
+#   Node Version   : 22
+services:
+  - type: web
+    name: hospital-erp-api
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # Must exactly match the Netlify origin (no trailing slash) - app.js
+      # places this in an exact-match CORS origin array.
+      - key: CLIENT_URL
+        value: https://mellifluous-hamster-3e731a.netlify.app
+      # MongoDB Atlas SRV string. Required - Render has no local MongoDB.
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        generateValue: true
+      # Local disk is ephemeral on Render; use Cloudinary or S3 for uploads.
+      - key: UPLOAD_PROVIDER
+        value: local
