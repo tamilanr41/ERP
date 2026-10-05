@@ -16,12 +16,34 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
+// CLIENT_URL may be a single origin or a comma-separated list. Entries are
+// trimmed and stripped of trailing slashes so a stray "/" cannot silently
+// drop the frontend out of the CORS allowlist (the browser then reports
+// "No 'Access-Control-Allow-Origin' header" with no server-side clue).
+const allowedOrigins = [
+  ...String(config.clientUrl || '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean),
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
+
+const originChecker = (origin, callback) => {
+  if (!origin) return callback(null, false);
+  if (allowedOrigins.includes(origin)) return callback(null, true);
+  logger.warn('CORS origin rejected', { origin, allowed: allowedOrigins });
+  return callback(null, false);
+};
+
+logger.info('CORS allowlist', { origins: allowedOrigins });
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
 app.use(cors({
-  origin: [config.clientUrl, 'http://localhost:5173', 'http://localhost:3000'],
+  origin: originChecker,
   credentials: true,
 }));
 

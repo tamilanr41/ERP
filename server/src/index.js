@@ -31,7 +31,10 @@ const start = async () => {
 
     const server = http.createServer(app);
     initSocketServer(server, {
-      corsOrigin: [config.clientUrl, 'http://localhost:5173', 'http://localhost:3000'],
+      corsOrigin: [config.clientUrl, 'http://localhost:5173', 'http://localhost:3000']
+        .flatMap((o) => String(o || '').split(','))
+        .map((o) => o.trim().replace(/\/+$/, ''))
+        .filter(Boolean),
     });
     logger.info('Socket.IO realtime attached');
 
