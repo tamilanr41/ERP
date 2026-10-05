@@ -8,11 +8,11 @@ import { AuthProvider } from './context/AuthContext';
 import './index.css';
 import './theme-clinical.css';
 import './theme-generated.css';
+import { applyTheme, readStoredTheme } from './lib/theme';
 
-// Section 46: the clinical workstation renders dark by default; the operator can
-// switch back to the light console, and the choice is remembered per workstation.
-const stored = localStorage.getItem('erp-theme');
-document.documentElement.setAttribute('data-theme', stored === 'light' ? 'light' : 'clinical');
+// The console opens light. The dark "clinical" workstation stays one toggle away
+// (header button / Alt+T) and the choice is remembered per workstation.
+applyTheme(readStoredTheme(), { persist: false });
 
 const queryClient = new QueryClient({
   defaultOptions: {

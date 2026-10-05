@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
+import { readActiveTheme } from './theme';
 
 /** Reads the active console theme and re-renders when it is switched. */
 export function useThemeMode() {
-  const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'clinical');
+  const [theme, setTheme] = useState(() => readActiveTheme());
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
-      setTheme(document.documentElement.getAttribute('data-theme') || 'clinical');
+      setTheme(readActiveTheme());
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => observer.disconnect();

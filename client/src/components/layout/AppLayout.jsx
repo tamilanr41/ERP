@@ -23,6 +23,7 @@ import Breadcrumbs from '../ui/Breadcrumbs';
 import { MODULES } from '../../data/modules';
 import { useIpdShortcuts } from '../../lib/useIpdShortcuts';
 import { POLL } from '../../lib/polling';
+import { applyTheme, otherTheme, readActiveTheme } from '../../lib/theme';
 import { SHORTCUTS } from '../../lib/useIpdShortcuts';
 import { MotionModal } from '../ui/Motion';
 
@@ -63,7 +64,7 @@ export default function AppLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'clinical');
+  const [theme, setTheme] = useState(() => readActiveTheme());
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications-unread'],
@@ -76,12 +77,7 @@ export default function AppLayout() {
   // actions live in useIpdShortcuts.
   useIpdShortcuts({ onOpenSearch: () => setPaletteOpen(true) });
 
-  const toggleTheme = () => {
-    const next = theme === 'clinical' ? 'light' : 'clinical';
-    document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('erp-theme', next);
-    setTheme(next);
-  };
+  const toggleTheme = () => setTheme(applyTheme(otherTheme(theme)));
 
   const tiles = useMemo(() => sidebarItems(hasPermission), [hasPermission]);
 
