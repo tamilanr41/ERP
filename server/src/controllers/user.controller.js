@@ -1,7 +1,7 @@
 import { success, created } from '../utils/apiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { writeAudit } from '../middleware/audit.js';
-import { listRolesService, listPermissionsService, setUserStatusService, updateUserService } from '../services/user.service.js';
+import { listRolesService, listPermissionsService, setUserStatusService, updateUserService, deleteUserService, resetUserPasswordService } from '../services/user.service.js';
 import { createUserService } from '../services/auth.service.js';
 
 export const listRoles = asyncHandler(async (req, res) => {
@@ -41,4 +41,23 @@ export const setUserStatus = asyncHandler(async (req, res) => {
   const user = await setUserStatusService(req.params.id, req.body.status, req.user);
   await writeAudit({ user: req.user, action: 'USER_STATUS_CHANGE', module: 'users', entityId: req.params.id, entityType: 'User', data: { status: req.body.status }, req });
   success(res, user, 'User status updated');
+});
+
+export const deleteUser = asyncHandler(async (req, res) => {
+  const user = await deleteUserService(req.params.id, req.user);
+  await writeAudit({ user: req.user, action: 'USER_DELETE', module: 'users', entityId: req.params.id, entityType: 'User', req });
+  success(res, user, 'User deactivated');
+});
+
+export const resetUserPassword = asyncHandler(async (req, res) => {
+  const result = await resetUserPasswordService(req.params.id, req.body.newPassword, req.user);
+  await writeAudit({
+    user: req.user,
+    action: 'USER_PASSWORD_RESET',
+    module: 'users',
+    entityId: req.params.id,
+    entityType: 'User',
+    req,
+  });
+  success(res, result, 'Password reset. The user must sign in again.');
 });

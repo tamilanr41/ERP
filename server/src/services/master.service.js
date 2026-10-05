@@ -2,7 +2,7 @@ import Hospital from '../models/Hospital.model.js';
 import Department from '../models/Department.model.js';
 import Doctor from '../models/Doctor.model.js';
 import { NotFoundError, BadRequestError, ConflictError } from '../utils/ApiError.js';
-import { regex } from '../utils/helpers.js';
+import { regex, pick } from '../utils/helpers.js';
 import { generateNumber, NUMBER_PREFIXES } from '../utils/numberGenerator.js';
 
 // ===== HOSPITAL =====
@@ -11,9 +11,56 @@ export const getHospital = async (id) => {
 };
 
 export const updateHospital = async (id, payload) => {
-  const hospital = await Hospital.findByIdAndUpdate(id, payload, { new: true, runValidators: true });
+  const fields = pickHospitalFields(payload);
+  const groups = Object.keys(fields).filter((k) => HOSPITAL_GROUP_FIELDS[k]);
+
+  // Nested groups have to be merged against what is already stored. Merging
+  // against the incoming body alone would replace the whole sub-document, so a
+  // form that sends only tax.defaultGstPct would silently blank out currency
+  // and currencySymbol.
+  if (groups.length) {
+    const current = await Hospital.findById(id).select(groups.join(' ')).lean();
+    if (!current) throw new NotFoundError('Hospital not found');
+    for (const group of groups) {
+      fields[group] = { ...(current[group] || {}), ...fields[group] };
+    }
+  }
+
+  const hospital = await Hospital.findByIdAndUpdate(id, fields, { new: true, runValidators: true });
   if (!hospital) throw new NotFoundError('Hospital not found');
   return hospital;
+};
+
+/**
+ * Fields an administrator is allowed to change from the hospital settings form.
+ *
+ * This used to pass req.body straight into findByIdAndUpdate, which let a
+ * settings save rewrite organizationId, code, billing prefixes and the active
+ * flag along with the address. The identity and tenancy keys are deliberately
+ * absent: organizationId decides which tenant the hospital belongs to and
+ * `code` is the unique key other documents are filed under, so neither should
+ * move as a side effect of editing a phone number.
+ */
+const pickHospitalFields = (payload) => {
+  const scalar = [
+    'name', 'logo', 'phone', 'email', 'website', 'gstNumber', 'panNumber',
+    'registrationNumber', 'nabhAccreditation', 'emergencyContact',
+  ];
+  const update = pick(payload, scalar);
+  for (const group of Object.keys(HOSPITAL_GROUP_FIELDS)) {
+    if (payload[group] && typeof payload[group] === 'object' && !Array.isArray(payload[group])) {
+      update[group] = pick(payload[group], HOSPITAL_GROUP_FIELDS[group]);
+    }
+  }
+  return update;
+};
+
+const HOSPITAL_GROUP_FIELDS = {
+  address: ['line1', 'line2', 'city', 'state', 'pincode', 'country'],
+  billing: ['invoicePrefix', 'receiptPrefix', 'patientIdPrefix', 'admissionPrefix', 'opdPrefix', 'defaultDiscountPct', 'taxInclusive'],
+  tax: ['defaultGstPct', 'currency', 'currencySymbol'],
+  prescriptionSettings: ['autoRxNumber', 'rxPrefix', 'showHospitalHeader'],
+  reportSettings: ['footer', 'showLogo'],
 };
 
 export const createHospital = async (payload) => {

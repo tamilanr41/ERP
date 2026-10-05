@@ -5,6 +5,11 @@ import {
   listLabTests,
   createLabTest,
   updateLabTest,
+  deleteLabTest,
+  listLabCategories,
+  createLabCategory,
+  updateLabCategory,
+  deleteLabCategory,
   createLabOrder,
   listLabOrders,
   getLabOrder,
@@ -30,6 +35,34 @@ export const updateTestController = asyncHandler(async (req, res) => {
   const test = await updateLabTest(req.params.id, req.body);
   await writeAudit({ user: req.user, action: 'LAB_TEST_UPDATE', module: 'lab', entityId: req.params.id, entityType: 'LabTest', req });
   success(res, test, 'Lab test updated');
+});
+
+export const deleteTestController = asyncHandler(async (req, res) => {
+  const test = await deleteLabTest(req.params.id);
+  await writeAudit({ user: req.user, action: 'LAB_TEST_DELETE', module: 'lab', entityId: req.params.id, entityType: 'LabTest', req });
+  success(res, test, 'Lab test deactivated');
+});
+
+export const listTestCategoriesController = asyncHandler(async (req, res) => {
+  success(res, await listLabCategories(), 'Lab test categories fetched');
+});
+
+export const createTestCategoryController = asyncHandler(async (req, res) => {
+  const category = await createLabCategory(req.body);
+  await writeAudit({ user: req.user, action: 'LAB_CATEGORY_CREATE', module: 'lab', entityId: category._id, entityType: 'LabCategory', req });
+  created(res, category, 'Lab category created');
+});
+
+export const updateTestCategoryController = asyncHandler(async (req, res) => {
+  const category = await updateLabCategory(req.params.id, req.body);
+  await writeAudit({ user: req.user, action: 'LAB_CATEGORY_UPDATE', module: 'lab', entityId: req.params.id, entityType: 'LabCategory', req });
+  success(res, category, 'Lab category updated');
+});
+
+export const deleteTestCategoryController = asyncHandler(async (req, res) => {
+  await deleteLabCategory(req.params.id);
+  await writeAudit({ user: req.user, action: 'LAB_CATEGORY_DELETE', module: 'lab', entityId: req.params.id, entityType: 'LabCategory', req });
+  success(res, null, 'Lab category deleted');
 });
 
 export const createOrderController = asyncHandler(async (req, res) => {

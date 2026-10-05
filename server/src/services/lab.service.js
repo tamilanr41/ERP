@@ -1,9 +1,9 @@
 import mongoose from 'mongoose';
-import LabTest from '../models/LabTest.model.js';
+import LabTest, { LabCategory } from '../models/LabTest.model.js';
 import LabOrder, { LabSample, LabResult, LAB_ORDER_STATUS } from '../models/LabOrder.model.js';
 import { generateNumber, NUMBER_PREFIXES } from '../utils/numberGenerator.js';
 import { BadRequestError, NotFoundError, ConflictError } from '../utils/ApiError.js';
-import { regex } from '../utils/helpers.js';
+import { regex, pick } from '../utils/helpers.js';
 import { createBillingService } from './billing.service.js';
 
 const computeFlags = (labTest, patient, values) => {
@@ -45,9 +45,53 @@ export const createLabTest = async (payload) => {
 };
 
 export const updateLabTest = async (id, payload) => {
-  const test = await LabTest.findByIdAndUpdate(id, payload, { new: true });
+  const update = pick(payload, [
+    'name', 'code', 'category', 'departmentId', 'sampleType', 'container',
+    'price', 'turnaroundHours', 'parameters', 'hasSubTests', 'subTests', 'active',
+  ]);
+  const test = await LabTest.findByIdAndUpdate(id, update, { new: true, runValidators: true }).populate('category', 'name');
   if (!test) throw new NotFoundError('Lab test not found');
   return test;
+};
+
+/**
+ * Retire a lab test rather than deleting the row.
+ *
+ * Released reports quote the test name, normal range and price that were
+ * current at the time. Deleting the master row would silently rewrite history
+ * on any report that resolves its reference back to this document, so the test
+ * is deactivated and simply stops appearing in the ordering catalogue.
+ */
+export const deleteLabTest = async (id) => {
+  const test = await LabTest.findById(id);
+  if (!test) throw new NotFoundError('Lab test not found');
+  test.active = false;
+  await test.save();
+  return test;
+};
+
+export const listLabCategories = async () => LabCategory.find({}).sort({ name: 1 });
+export const createLabCategory = async (payload) => LabCategory.create(pick(payload, ['name', 'description']));
+
+export const updateLabCategory = async (id, payload) => {
+  const inUse = await LabTest.countDocuments({ category: id, active: true });
+  const rename = payload.name && payload.name !== (await LabCategory.findById(id).lean())?.name;
+  if (rename && inUse > 0) {
+    throw new BadRequestError(`${inUse} active test${inUse === 1 ? '' : 's'} still use this category. Retire them first.`);
+  }
+  const category = await LabCategory.findByIdAndUpdate(id, pick(payload, ['name', 'description']), { new: true, runValidators: true });
+  if (!category) throw new NotFoundError('Lab category not found');
+  return category;
+};
+
+export const deleteLabCategory = async (id) => {
+  const inUse = await LabTest.countDocuments({ category: id, active: true });
+  if (inUse > 0) {
+    throw new BadRequestError(`${inUse} active test${inUse === 1 ? '' : 's'} still use this category. Retire them first.`);
+  }
+  const category = await LabCategory.findByIdAndDelete(id);
+  if (!category) throw new NotFoundError('Lab category not found');
+  return category;
 };
 
 /**

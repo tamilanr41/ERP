@@ -6,8 +6,13 @@ import {
   updateMedicineController,
   categoriesController,
   createCategoryController,
+  updateCategoryController,
+  deleteCategoryController,
   manufacturersController,
   createManufacturerController,
+  updateManufacturerController,
+  deleteManufacturerController,
+  deleteMedicineController,
   createSaleController,
   listSalesController,
   createPurchaseController,
@@ -29,11 +34,31 @@ router.get('/medicines', requirePermission('PHARMACY_VIEW', 'PRESCRIPTION_CREATE
 router.post('/medicines', requirePermission('PHARMACY_PURCHASE'), validate([
   body('name').trim().notEmpty(),
 ]), createMedicineController);
-router.put('/medicines/:id', requirePermission('PHARMACY_PURCHASE', 'PHARMACY_STOCK_ADJUST'), updateMedicineController);
+router.put('/medicines/:id', requirePermission('PHARMACY_PURCHASE', 'PHARMACY_STOCK_ADJUST'), validate([
+  param('id').isMongoId().withMessage('Valid medicine id required'),
+  body('name').optional().trim().notEmpty(),
+]), updateMedicineController);
+router.delete('/medicines/:id', requirePermission('PHARMACY_PURCHASE'), validate([
+  param('id').isMongoId().withMessage('Valid medicine id required'),
+]), deleteMedicineController);
 router.get('/categories', categoriesController);
 router.post('/categories', requirePermission('PHARMACY_PURCHASE'), validate([body('name').trim().notEmpty()]), createCategoryController);
+router.put('/categories/:id', requirePermission('PHARMACY_PURCHASE'), validate([
+  param('id').isMongoId(),
+  body('name').optional().trim().notEmpty(),
+]), updateCategoryController);
+router.delete('/categories/:id', requirePermission('PHARMACY_PURCHASE'), validate([
+  param('id').isMongoId(),
+]), deleteCategoryController);
 router.get('/manufacturers', manufacturersController);
 router.post('/manufacturers', requirePermission('PHARMACY_PURCHASE'), validate([body('name').trim().notEmpty()]), createManufacturerController);
+router.put('/manufacturers/:id', requirePermission('PHARMACY_PURCHASE'), validate([
+  param('id').isMongoId(),
+  body('name').optional().trim().notEmpty(),
+]), updateManufacturerController);
+router.delete('/manufacturers/:id', requirePermission('PHARMACY_PURCHASE'), validate([
+  param('id').isMongoId(),
+]), deleteManufacturerController);
 
 router.get('/stock', requirePermission('PHARMACY_VIEW', 'INVENTORY_VIEW'), stockController);
 router.get('/stock/expiring', requirePermission('PHARMACY_VIEW', 'INVENTORY_VIEW'), expiringController);

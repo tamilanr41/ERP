@@ -276,6 +276,10 @@ export const createUserService = async (payload, actor) => {
   const user = await User.create({
     ...rest,
     username,
+    // The schema field is `role`, not `roleId`. Stripping roleId out of the
+    // payload without assigning role here left it undefined and every create
+    // died on "Path `role` is required".
+    role: role._id,
     roleCode: role.name,
     passwordHash: payload.password || 'Temp@12345',
     permissions: permissions || undefined,

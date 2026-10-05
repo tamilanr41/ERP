@@ -119,7 +119,9 @@ const getCloudinaryStorage = async () => {
     },
   };
 
-  logger.info('Upload provider', { provider: 'cloudinary', folder });
+  // `folder` only existed inside _handleFile, so naming it here was a
+  // ReferenceError thrown while the provider was still being configured.
+  logger.info('Upload provider', { provider: 'cloudinary', root: `hospital-erp/${requestedDir({ query: {} })}` });
   return cloudinaryStorage;
 };
 
@@ -128,13 +130,29 @@ const resolveStorage = (req, res, next) => {
   getCloudinaryStorage().then((s) => next(null, s), next);
 };
 
+export const IMAGE_MIME = {
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png'],
+  'image/webp': ['.webp'],
+  'image/gif': ['.gif'],
+};
+
 /**
  * upload middleware. Use fieldName e.g. "file", "photo".
+ *
+ * `allowedMimes` narrows the global allow-list for endpoints where the general
+ * one is too broad. A hospital logo was accepted as text/plain while the shared
+ * filter still applied, because documents legitimately need .txt. Pass
+ * IMAGE_MIME for anything that must render as a picture.
  */
-export const uploader = (fieldName = 'file', maxCount = 1) => (req, res, next) => {
+export const uploader = (fieldName = 'file', maxCount = 1, allowedMimes = ALLOWED_MIME) => (req, res, next) => {
+  const scopedFilter = (rq, file, cb) => {
+    if (file.mimetype && allowedMimes[file.mimetype]) return cb(null, true);
+    cb(new BadRequestError(`File type not allowed: ${file.mimetype}`));
+  };
   resolveStorage(req, res, (err, storage) => {
     if (err) return next(err);
-    const instance = multer({ storage, limits, fileFilter });
+    const instance = multer({ storage, limits, fileFilter: scopedFilter });
     const handle = maxCount > 1 ? instance.array(fieldName, maxCount) : instance.single(fieldName);
     handle(req, res, (uploadErr) => {
       if (uploadErr) return next(uploadErr);

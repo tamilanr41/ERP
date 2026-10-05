@@ -1,6 +1,7 @@
 import { success, created } from '../utils/apiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { writeAudit } from '../middleware/audit.js';
+import { BadRequestError } from '../utils/ApiError.js';
 import {
   getHospital, updateHospital, createHospital,
   listDepartments, createDepartment, updateDepartment, deleteDepartment,
@@ -12,9 +13,38 @@ export const getHospitalController = asyncHandler(async (req, res) => {
   success(res, hospital, 'Hospital fetched');
 });
 
+/**
+ * Shared by the update and logo routes: a super admin whose own account has no
+ * hospitalId would otherwise get a bare 400 with no way to attach one, which
+ * is exactly the account that most needs to be able to configure the hospital.
+ * Falls back to the only hospital when there is provably just one.
+ */
+const resolveHospitalId = async (req) => {
+  if (req.user?.hospitalId) return req.user.hospitalId;
+  const { default: Hospital } = await import('../models/Hospital.model.js');
+  const hospitals = await Hospital.find({}).select('_id').limit(2).lean();
+  if (hospitals.length === 1) return hospitals[0]._id;
+  throw new BadRequestError('No hospital associated with account');
+};
+
+export const uploadHospitalLogoController = asyncHandler(async (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+  const hospitalId = await resolveHospitalId(req);
+  const hospital = await updateHospital(hospitalId, { logo: req.file.publicPath || req.file.filename });
+  await writeAudit({ user: req.user, action: 'HOSPITAL_LOGO_UPLOAD', module: 'hospital', entityId: hospital._id, entityType: 'Hospital', req });
+  success(res, hospital, 'Hospital logo updated');
+});
+
+export const deleteHospitalLogoController = asyncHandler(async (req, res) => {
+  const hospitalId = await resolveHospitalId(req);
+  const hospital = await updateHospital(hospitalId, { logo: '' });
+  await writeAudit({ user: req.user, action: 'HOSPITAL_LOGO_REMOVE', module: 'hospital', entityId: hospital._id, entityType: 'Hospital', req });
+  success(res, hospital, 'Hospital logo removed');
+});
+
 export const updateHospitalController = asyncHandler(async (req, res) => {
-  if (!req.user?.hospitalId) return res.status(400).json({ success: false, message: 'No hospital associated with account' });
-  const hospital = await updateHospital(req.user.hospitalId, req.body);
+  const hospitalId = await resolveHospitalId(req);
+  const hospital = await updateHospital(hospitalId, req.body);
   await writeAudit({ user: req.user, action: 'HOSPITAL_UPDATE', module: 'hospital', entityId: hospital._id, entityType: 'Hospital', req });
   success(res, hospital, 'Hospital updated');
 });

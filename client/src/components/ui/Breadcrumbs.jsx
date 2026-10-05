@@ -42,6 +42,14 @@ const TOP_LABELS = {
   settings: 'System Settings',
 };
 
+const SETTINGS_TAB_LABELS = {
+  hospital: 'Hospital',
+  users: 'Users',
+  medicines: 'Medicines',
+  'lab-tests': 'Test names',
+  general: 'Configuration',
+};
+
 function crumbsFor(pathname) {
   const segments = pathname.split('/').filter(Boolean);
 
@@ -101,14 +109,24 @@ function crumbsFor(pathname) {
 }
 
 export default function Breadcrumbs({ className }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const crumbs = useMemo(() => crumbsFor(pathname), [pathname]);
+
+  // The settings screen is one route with ?tab= selecting the panel, so the
+  // active tab is appended here - otherwise every tab reads "System Settings".
+  const settingsTab = useMemo(() => {
+    if (pathname !== '/settings') return null;
+    const tab = new URLSearchParams(search).get('tab');
+    return SETTINGS_TAB_LABELS[tab] || null;
+  }, [pathname, search]);
+
+  const trail = settingsTab ? [...crumbs, { label: settingsTab, active: true }] : crumbs;
 
   return (
     <nav aria-label="Breadcrumb" className={cn('scrollbar-none overflow-x-auto px-6 pt-4', className)}>
       <ol className="flex items-center gap-1 text-[13px] text-ink-500">
-        {crumbs.map((crumb, i) => {
-          const last = i === crumbs.length - 1;
+        {trail.map((crumb, i) => {
+          const last = i === trail.length - 1;
           return (
             <li key={`${crumb.label}-${i}`} className="flex shrink-0 items-center gap-1">
               {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-ink-300" />}

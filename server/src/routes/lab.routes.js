@@ -8,6 +8,11 @@ import {
   listTestsController,
   createTestController,
   updateTestController,
+  deleteTestController,
+  listTestCategoriesController,
+  createTestCategoryController,
+  updateTestCategoryController,
+  deleteTestCategoryController,
   createOrderController,
   listOrdersController,
   getOrderController,
@@ -24,9 +29,32 @@ router.use(authenticate);
 
 const mongoIdParam = (name) => param(name).isMongoId().withMessage(`Valid ${name} required`);
 
+const testNameRule = () => body('name').trim().notEmpty().withMessage('Test name is required');
+
+// POST /tests took no validation at all, so an empty body reached the model and
+// failed as an opaque Mongo error instead of naming the missing field.
 router.get('/tests', requirePermission('LAB_VIEW'), listTestsController);
-router.post('/tests', requirePermission('LAB_MANAGE'), createTestController);
-router.put('/tests/:id', requirePermission('LAB_MANAGE'), validate([mongoIdParam('id')]), updateTestController);
+router.post('/tests', requirePermission('LAB_MANAGE'), validate([
+  testNameRule(),
+  body('price').optional().isFloat({ min: 0 }).withMessage('Price cannot be negative'),
+  body('turnaroundHours').optional().isInt({ min: 0 }),
+]), createTestController);
+router.put('/tests/:id', requirePermission('LAB_MANAGE'), validate([
+  mongoIdParam('id'),
+  body('name').optional().trim().notEmpty(),
+  body('price').optional().isFloat({ min: 0 }),
+]), updateTestController);
+router.delete('/tests/:id', requirePermission('LAB_MANAGE'), validate([mongoIdParam('id')]), deleteTestController);
+
+router.get('/test-categories', requirePermission('LAB_VIEW'), listTestCategoriesController);
+router.post('/test-categories', requirePermission('LAB_MANAGE'), validate([
+  body('name').trim().notEmpty().withMessage('Category name is required'),
+]), createTestCategoryController);
+router.put('/test-categories/:id', requirePermission('LAB_MANAGE'), validate([
+  mongoIdParam('id'),
+  body('name').optional().trim().notEmpty(),
+]), updateTestCategoryController);
+router.delete('/test-categories/:id', requirePermission('LAB_MANAGE'), validate([mongoIdParam('id')]), deleteTestCategoryController);
 
 router.post('/orders', requirePermission('LAB_ORDER_CREATE'), createOrderController);
 router.get('/orders', requirePermission('LAB_VIEW'), listOrdersController);

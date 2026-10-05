@@ -81,6 +81,12 @@ permissionSchema.statics.ensureDefaults = async function () {
     ['LAB_RESULT_ENTER', 'lab', 'Enter lab results'],
     ['LAB_RESULT_VERIFY', 'lab', 'Verify lab results'],
     ['LAB_SAMPLE', 'lab', 'Manage lab samples'],
+    // Creating, renaming and retiring lab tests is master-data work, not a
+    // clinical step, so it is deliberately not implied by LAB_ORDER_CREATE or
+    // LAB_RESULT_ENTER. Before this existed lab.routes.js required a code that
+    // no Permission row carried, which left test administration reachable only
+    // through the SUPER_ADMIN bypass in requirePermission.
+    ['LAB_MANAGE', 'lab', 'Manage lab test master data'],
     // Radiology
     ['RADIOLOGY_VIEW', 'radiology', 'View radiology'],
     ['RADIOLOGY_ORDER_CREATE', 'radiology', 'Create radiology orders'],
@@ -116,6 +122,11 @@ permissionSchema.statics.ensureDefaults = async function () {
     ['FINANCE_VIEW', 'finance', 'View finance'],
     ['EXPENSE_CREATE', 'finance', 'Create expenses'],
     // Users / Roles
+    // HR_STAFF already listed USER_VIEW in its permission array, but a code that
+    // never becomes a Permission row is never granted to anyone - HOSPITAL_ADMIN
+    // is built from the Permission table, so it silently lacked this too and the
+    // user list was SUPER_ADMIN-only.
+    ['USER_VIEW', 'admin', 'View users'],
     ['USER_CREATE', 'admin', 'Create users'],
     ['USER_EDIT', 'admin', 'Edit users'],
     ['USER_DELETE', 'admin', 'Delete users'],

@@ -45,3 +45,10 @@ export const updateUserRules = validate([
 export const setUserStatusRules = validate([
   body('status').isIn(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'LOCKED']).withMessage('Invalid status'),
 ]);
+
+// An administrator setting a colleague's password bypasses the complexity rule
+// used for self-service changes on purpose: a temporary credential handed over
+// at a nursing station should not fail validation, only the length floor holds.
+export const adminResetPasswordRules = validate([
+  body('newPassword').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+]);

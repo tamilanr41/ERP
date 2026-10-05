@@ -8,7 +8,7 @@ import { PurchaseReturn } from '../models/Purchase.model.js';
 import Prescription from '../models/Prescription.model.js';
 import { generateNumber, NUMBER_PREFIXES } from '../utils/numberGenerator.js';
 import { BadRequestError, NotFoundError, ConflictError } from '../utils/ApiError.js';
-import { regex } from '../utils/helpers.js';
+import { regex, pick } from '../utils/helpers.js';
 import { writeAudit } from '../middleware/audit.js';
 import { createBillingService } from './billing.service.js';
 
@@ -455,7 +455,14 @@ export const createMedicine = async (payload) => {
 };
 
 export const updateMedicine = async (id, payload) => {
-  const medicine = await Medicine.findByIdAndUpdate(id, payload, { new: true });
+  // Whitelisted: this route took the raw body before, so a caller could rewrite
+  // _id (which Mongo rejects outright) or reassign hospitalId/branchId to move
+  // a medicine between tenants.
+  const update = pick(payload, [
+    'name', 'genericName', 'brand', 'category', 'manufacturer', 'supplierId', 'unit', 'packSize',
+    'hsnCode', 'gstPct', 'reorderLevel', 'maxStock', 'storageConditions', 'isControlled', 'isActive',
+  ]);
+  const medicine = await Medicine.findByIdAndUpdate(id, update, { new: true, runValidators: true });
   if (!medicine) throw new NotFoundError('Medicine not found');
   return medicine;
 };
@@ -464,3 +471,52 @@ export const createCategory = async (payload) => MedicineCategory.create(payload
 export const listCategories = async () => MedicineCategory.find({}).sort({ name: 1 });
 export const createManufacturer = async (payload) => Manufacturer.create(payload);
 export const listManufacturers = async () => Manufacturer.find({}).sort({ name: 1 });
+
+export const updateCategory = async (id, payload) => {
+  const update = pick(payload, ['name', 'description']);
+  const category = await MedicineCategory.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+  if (!category) throw new NotFoundError('Medicine category not found');
+  return category;
+};
+
+export const updateManufacturer = async (id, payload) => {
+  const update = pick(payload, ['name', 'contact', 'contactDetails']);
+  const manufacturer = await Manufacturer.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+  if (!manufacturer) throw new NotFoundError('Manufacturer not found');
+  return manufacturer;
+};
+
+/**
+ * Retire a medicine rather than deleting the row.
+ *
+ * Past bills and prescriptions keep pointing at this document. Removing it
+ * would leave a dispensed medicine in a signed-off bill with no name behind it,
+ * so the item is flagged inactive and disappears from ordering screens.
+ */
+export const deleteMedicine = async (id) => {
+  const medicine = await Medicine.findById(id);
+  if (!medicine) throw new NotFoundError('Medicine not found');
+  medicine.isActive = false;
+  await medicine.save();
+  return medicine;
+};
+
+export const deleteCategory = async (id) => {
+  const inUse = await Medicine.countDocuments({ category: id, isActive: true });
+  if (inUse > 0) {
+    throw new BadRequestError(`${inUse} medicine${inUse === 1 ? '' : 's'} still use this category. Move them first.`);
+  }
+  const category = await MedicineCategory.findByIdAndDelete(id);
+  if (!category) throw new NotFoundError('Medicine category not found');
+  return category;
+};
+
+export const deleteManufacturer = async (id) => {
+  const inUse = await Medicine.countDocuments({ manufacturer: id, isActive: true });
+  if (inUse > 0) {
+    throw new BadRequestError(`${inUse} medicine${inUse === 1 ? '' : 's'} still use this manufacturer. Move them first.`);
+  }
+  const manufacturer = await Manufacturer.findByIdAndDelete(id);
+  if (!manufacturer) throw new NotFoundError('Manufacturer not found');
+  return manufacturer;
+};

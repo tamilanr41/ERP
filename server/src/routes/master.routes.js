@@ -3,6 +3,8 @@ import {
   getHospitalController,
   updateHospitalController,
   createHospitalController,
+  uploadHospitalLogoController,
+  deleteHospitalLogoController,
   listDepartmentsController,
   createDepartmentController,
   updateDepartmentController,
@@ -14,6 +16,7 @@ import {
   deleteDoctorController,
 } from '../controllers/master.controller.js';
 import { authenticate, requirePermission } from '../middleware/auth.js';
+import { uploader, sanitizeUpload, IMAGE_MIME } from '../middleware/upload.js';
 import { validate } from '../middleware/validate.js';
 import { body, param } from 'express-validator';
 
@@ -29,6 +32,17 @@ router.put('/hospital', requirePermission('HOSPITAL_MANAGE'), validate([
   body('gstNumber').optional().trim(),
 ]), updateHospitalController);
 router.post('/hospital', requirePermission('HOSPITAL_MANAGE'), createHospitalController);
+// Logo has to be its own multipart route: express.json() ignores multipart
+// bodies, so a file posted to PUT /hospital would arrive with req.body empty
+// and the upload would be silently dropped.
+router.post(
+  '/hospital/logo',
+  requirePermission('HOSPITAL_MANAGE'),
+  uploader('file', 1, IMAGE_MIME),
+  sanitizeUpload,
+  uploadHospitalLogoController,
+);
+router.delete('/hospital/logo', requirePermission('HOSPITAL_MANAGE'), deleteHospitalLogoController);
 
 // Departments
 router.get('/departments', listDepartmentsController);
