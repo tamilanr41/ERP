@@ -23,8 +23,9 @@ services:
         value: production
       # Must exactly match the Netlify origin (no trailing slash) - app.js
       # places this in an exact-match CORS origin array.
+      # Multiple origins are allowed as a comma-separated list.
       - key: CLIENT_URL
-        value: https://mellifluous-hamster-3e731a.netlify.app
+        value: https://deluxe-mermaid-8680de.netlify.app
       # MongoDB Atlas SRV string. Required - Render has no local MongoDB.
       - key: MONGO_URI
         sync: false
@@ -36,6 +37,16 @@ services:
         sync: false
       - key: SEED_ADMIN_PASSWORD
         generateValue: true
-      # Local disk is ephemeral on Render; use Cloudinary or S3 for uploads.
+      # Local disk is ephemeral on Render, so UPLOAD_PROVIDER must not stay
+      # "local" in production: server/uploads is wiped on every deploy and
+      # previously stored document URLs return 404.
       - key: UPLOAD_PROVIDER
-        value: local
+        value: cloudinary
+      - key: MAX_FILE_SIZE_MB
+        value: "10"
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
