@@ -7,6 +7,8 @@ import Doctor from '../models/Doctor.model.js';
 import { UnauthorizedError, BadRequestError } from '../utils/ApiError.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../middleware/auth.js';
 import { writeAudit } from '../middleware/audit.js';
+import config from '../config/index.js';
+import logger from '../config/logger.js';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
@@ -23,6 +25,51 @@ export const backfillUserNames = async () => {
     [{ $set: { name: { $concat: ['$firstName', ' ', { $ifNull: ['$lastName', ''] }] } } }],
   );
   return res.modifiedCount || 0;
+};
+
+/**
+ * Create the first superadmin if and only if the deployment has no user at all.
+ *
+ * Roles and permissions are bootstrapped automatically on every boot, but the
+ * admin account was only ever created by `npm run seed`. A fresh Atlas cluster
+ * therefore comes up with working roles and no way to log in - login returns 401
+ * for credentials that are visibly correct, because no such user exists.
+ *
+ * Guarded on both conditions so this can never overwrite an existing account or
+ * reset a password that has since been changed.
+ */
+export const bootstrapAdminUser = async () => {
+  const email = String(config.seed.adminEmail || '').trim().toLowerCase();
+  const password = String(config.seed.adminPassword || '');
+  const username = 'superadmin';
+
+  const existing = await User.findOne({ $or: [{ username }, { email }] }).select('_id');
+  if (existing) return { created: false, reason: 'admin user already exists' };
+
+  const usingDefaultPassword = password === 'Admin@123';
+  if (usingDefaultPassword) {
+    logger.warn(
+      'SEED_ADMIN_PASSWORD is the built-in default (Admin@123). This account is public knowledge, ' +
+        'so anyone who reaches this URL can sign in. Set a unique SEED_ADMIN_PASSWORD and redeploy.',
+    );
+  }
+
+  const role = await Role.findOne({ name: 'SUPER_ADMIN' });
+  if (!role) return { created: false, reason: 'SUPER_ADMIN role missing' };
+
+  const user = await User.create({
+    username,
+    email,
+    passwordHash: password,
+    firstName: 'Super',
+    lastName: 'Admin',
+    role: role._id,
+    roleCode: 'SUPER_ADMIN',
+    status: 'ACTIVE',
+  });
+
+  logger.info('Super admin account created', { username, email });
+  return { created: true, user };
 };
 
 export const bootstrapRoles = async () => {

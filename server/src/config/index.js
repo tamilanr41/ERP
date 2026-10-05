@@ -8,6 +8,17 @@ const config = {
   port: parseInt(process.env.PORT, 10) || 5000,
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
 
+  // Number of proxy hops to trust for req.ip / X-Forwarded-For. Render's edge is
+  // one hop. "true" is deliberately not the default: it would trust the entire
+  // chain and let a client spoof its own address past the rate limiter.
+  trustProxy: (() => {
+    const raw = String(process.env.TRUST_PROXY ?? '1').trim().toLowerCase();
+    if (raw === 'false' || raw === '0' || raw === 'no') return false;
+    if (raw === 'true' || raw === 'all') return true;
+    const hops = parseInt(raw, 10);
+    return Number.isFinite(hops) && hops > 0 ? hops : false;
+  })(),
+
   mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/hospital_erp',
 
   jwt: {

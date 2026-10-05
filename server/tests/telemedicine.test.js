@@ -576,3 +576,49 @@ test('telemedicine: declining consent is recorded, not silently ignored', async 
   assert.equal(declined.consent.videoConsent, false);
   assert.ok(declined.consent.recordedAt, 'a refusal is still a recorded event');
 });
+
+test('security: a failed login never writes the password into the error log', async () => {
+  const { redactSensitive } = await import('../src/middleware/errorHandler.js');
+
+  const logged = redactSensitive({
+    usernameOrEmail: 'superadmin',
+    password: 'Admin@123',
+    currentPassword: 'old-one',
+    newPassword: 'new-one',
+    nested: { patient: { passwordHash: 'bcrypt$...', uhid: 'TM001' } },
+  });
+
+  assert.equal(logged.password, '***');
+  assert.equal(logged.currentPassword, '***');
+  assert.equal(logged.newPassword, '***');
+  assert.equal(logged.nested.patient.passwordHash, '***');
+  assert.equal(logged.usernameOrEmail, 'superadmin', 'non-secret fields stay useful for debugging');
+  assert.equal(logged.nested.patient.uhid, 'TM001');
+});
+
+test('deployment: the proxy hop is trusted so rate limiting can identify a client', async () => {
+  const config = (await import('../src/config/index.js')).default;
+
+  // Render terminates TLS on its edge and forwards X-Forwarded-For. With trust
+  // proxy off, express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on
+  // every request and the login brute-force limit counts nobody.
+  assert.equal(config.trustProxy, 1, 'exactly one hop - trusting the whole chain would allow spoofing');
+});
+
+test('deployment: the first-run admin is provisioned so a fresh cluster is usable', async () => {
+  const { bootstrapAdminUser, bootstrapRoles } = await import('../src/services/auth.service.js');
+  const User = (await import('../src/models/User.model.js')).default;
+
+  // beforeEach wipes every collection, so the roles have to be re-seeded the way
+  // a real boot would have them before the admin check runs.
+  await bootstrapRoles();
+  assert.equal(await User.countDocuments({}), 0, 'starting from an empty user table');
+
+  const first = await bootstrapAdminUser();
+  assert.equal(first.created, true, 'a cluster with no user at all must not be left unloginable');
+  assert.equal(first.user.username, 'superadmin');
+
+  const second = await bootstrapAdminUser();
+  assert.equal(second.created, false, 'an existing admin is never overwritten');
+  assert.equal(await User.countDocuments({ username: 'superadmin' }), 1);
+});

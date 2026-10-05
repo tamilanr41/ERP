@@ -3,7 +3,7 @@ import app from './app.js';
 import config from './config/index.js';
 import logger from './config/logger.js';
 import { connectDB } from './config/db.js';
-import { bootstrapRoles } from './services/auth.service.js';
+import { bootstrapRoles, bootstrapAdminUser } from './services/auth.service.js';
 import { bootstrapFeatureFlags } from './services/featureFlag.service.js';
 import { seedExaminationTemplates, seedDiagnosisMaster } from './services/opd.service.js';
 import { backfillUserNames } from './services/auth.service.js';
@@ -18,6 +18,9 @@ const start = async () => {
     logger.info('MongoDB connected');
     await bootstrapRoles();
     logger.info('Roles & permissions bootstrapped');
+    const admin = await bootstrapAdminUser();
+    if (admin.created) logger.info('First-run admin account provisioned');
+    else logger.info('Admin bootstrap skipped', { reason: admin.reason });
     await bootstrapFeatureFlags();
     logger.info('Feature flags bootstrapped');
     await backfillUserNames();

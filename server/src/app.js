@@ -16,6 +16,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 
+// Render (and every other PaaS) terminates TLS on its own edge and forwards the
+// client address in X-Forwarded-For. Without this, express-rate-limit cannot
+// identify who sent a request and throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on
+// every call - which also means the brute-force limit on /auth/login counted
+// nobody. Exactly one hop is trusted, never "true": trusting the whole chain
+// would let a client spoof X-Forwarded-For and evade the limit entirely.
+app.set('trust proxy', config.trustProxy);
+
 // CLIENT_URL may be a single origin or a comma-separated list. Entries are
 // trimmed and stripped of trailing slashes so a stray "/" cannot silently
 // drop the frontend out of the CORS allowlist (the browser then reports

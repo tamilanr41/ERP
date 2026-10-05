@@ -2,6 +2,28 @@ import logger from '../config/logger.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ERROR_CODES } from '../utils/codes.js';
 
+/**
+ * Request bodies are attached to error logs to make failures diagnosable, but a
+ * login or password-reset body must never reach a log file or stdout in clear
+ * text. Matching is done on a lower-cased key, and on the substring "password"
+ * so that currentPassword / newPassword / passwordHash are caught too.
+ */
+const REDACTED = '***';
+const isSensitive = (key) => {
+  const k = String(key).toLowerCase();
+  return k.includes('password') || k.includes('token') || k.includes('secret') || k === 'authorization' || k === 'pin' || k === 'otp';
+};
+
+export const redactSensitive = (value, depth = 0) => {
+  if (depth > 4 || value == null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map((v) => redactSensitive(v, depth + 1));
+  const out = {};
+  for (const [key, val] of Object.entries(value)) {
+    out[key] = isSensitive(key) ? REDACTED : redactSensitive(val, depth + 1);
+  }
+  return out;
+};
+
 export const notFound = (req, res) => {
   res.status(404).json({
     success: false,
@@ -44,7 +66,7 @@ export const errorHandler = (err, req, res, _next) => {
     message: error.message,
     code,
     stack: statusCode >= 500 ? error.stack : undefined,
-    body: req.body || undefined,
+    body: req.body ? redactSensitive(req.body) : undefined,
   });
 
   if (!error.isOperational && !statusCode) {
