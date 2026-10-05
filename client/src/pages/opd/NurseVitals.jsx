@@ -21,11 +21,15 @@ export default function NurseVitals() {
     refetchIntervalInBackground: true,
   });
 
+  // Waiting/called/in-consultation all still need vitals; a closed or no-show
+  // visit does not, so it must not sit in the nurse's list forever.
+  const OPEN_STATUSES = ['WAITING', 'CALLED', 'IN_CONSULTATION'];
+
   const awaiting = useMemo(() => {
     const rows = visits.data || [];
     return rows
-      .filter((v) => v.vitalsStatus !== 'COMPLETED' && v.status === 'IN_PROGRESS')
-      .sort((a, b) => new Date(a.visitDate) - new Date(b.visitDate));
+      .filter((v) => v.vitalsStatus !== 'COMPLETED' && OPEN_STATUSES.includes(v.status))
+      .sort((a, b) => (a.tokenSeq ?? Infinity) - (b.tokenSeq ?? Infinity));
   }, [visits.data]);
 
   const completedToday = useMemo(() => (visits.data || []).filter((v) => v.vitalsStatus === 'COMPLETED').length, [visits.data]);

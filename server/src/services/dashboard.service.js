@@ -3,7 +3,7 @@ import Patient from '../models/Patient.model.js';
 import Appointment from '../models/Appointment.model.js';
 import IpdAdmission, { ADMISSION_STATUS } from '../models/IpdAdmission.model.js';
 import { Bed, BED_STATUS } from '../models/Bed.model.js';
-import OpdVisit from '../models/OpdVisit.model.js';
+import OpdVisit, { OPD_OPEN_STATES, OPD_CLOSED_STATES } from '../models/OpdVisit.model.js';
 import Emergency from '../models/Emergency.model.js';
 import PharmacySale from '../models/PharmacySale.model.js';
 import LabResult from '../models/LabOrder.model.js';
@@ -57,7 +57,7 @@ export const adminDashboard = async (query = {}) => {
   ] = await Promise.all([
     Patient.countDocuments({ deletedAt: null, status: { $ne: 'MERGED' } }),
     Appointment.countDocuments({ date: { $gte: start, $lt: end } }),
-    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: { $in: ['COMPLETED', 'IN_PROGRESS', 'ADMITTED', 'REFERRED'] } }),
+    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: { $in: ['COMPLETED', 'IN_CONSULTATION', 'ADMITTED', 'REFERRED'] } }),
     IpdAdmission.countDocuments({ status: ADMISSION_STATUS.ADMITTED }),
     IpdAdmission.countDocuments({ admittedAt: { $gte: start, $lt: end } }),
     IpdAdmission.countDocuments({ dischargedAt: { $gte: start, $lt: end } }),
@@ -115,15 +115,22 @@ export const adminDashboard = async (query = {}) => {
 export const opdDashboard = async (query = {}) => {
   const { start, end } = dateRange(query);
   const PENDING_LAB = ['ORDERED', 'BILLED', 'SAMPLE_COLLECTED', 'PROCESSING', 'RESULT_ENTERED'];
+  const OPEN_QUEUE_STATES = OPD_OPEN_STATES;
+  const CLOSED_QUEUE_STATES = OPD_CLOSED_STATES;
 
   const [
     totalOPD,
     appointmentVisits,
     walkedInVisits,
-    inProgressVisits,
+    openVisits,
+    waitingVisits,
+    calledVisits,
     inConsultationVisits,
+    readyForConsult,
     completedVisits,
-    noShow,
+    admittedVisits,
+    referredVisits,
+    visitNoShows,
     appointmentsBooked,
     pendingBilling,
     pendingInvestigations,
@@ -135,10 +142,22 @@ export const opdDashboard = async (query = {}) => {
     OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end } }),
     OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, appointmentId: { $ne: null } }),
     OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, visitType: 'WALK_IN' }),
-    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: 'IN_PROGRESS' }),
-    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: 'IN_PROGRESS', 'vitals.temperature': { $exists: true } }),
-    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: { $in: ['COMPLETED', 'REFERRED', 'ADMITTED'] } }),
-    Appointment.countDocuments({ date: { $gte: start, $lt: end }, status: 'NO_SHOW' }),
+    // Still open in the department: waiting, called or mid-consultation.
+    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: { $in: OPEN_QUEUE_STATES } }),
+    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: 'WAITING' }),
+    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: 'CALLED' }),
+    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: 'IN_CONSULTATION' }),
+    // Vitals done and not yet seen. This is the number that tells a clerk the
+    // doctor is actually blocked, which "open minus in consultation" does not.
+    OpdVisit.countDocuments({
+      visitDate: { $gte: start, $lt: end },
+      status: { $in: ['WAITING', 'CALLED'] },
+      vitalsStatus: 'COMPLETED',
+    }),
+    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: { $in: CLOSED_QUEUE_STATES } }),
+    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: 'ADMITTED' }),
+    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: 'REFERRED' }),
+    OpdVisit.countDocuments({ visitDate: { $gte: start, $lt: end }, status: 'NO_SHOW' }),
     Appointment.countDocuments({ date: { $gte: start, $lt: end }, status: { $nin: ['CANCELLED', 'NO_SHOW'] } }),
     Bill.countDocuments({ status: { $in: ['FINAL', 'PARTIALLY_PAID'] }, dueAmount: { $gt: 0 } }),
     LabOrder.countDocuments({ status: { $in: PENDING_LAB } }),
@@ -153,8 +172,6 @@ export const opdDashboard = async (query = {}) => {
       .limit(8),
   ]);
 
-  const inProgress = inProgressVisits;
-  const inConsultation = inConsultationVisits;
   const pad = (n) => String(n).padStart(2, '0');
   const localDate = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
 
@@ -164,10 +181,17 @@ export const opdDashboard = async (query = {}) => {
       totalOPD,
       appointments: appointmentVisits,
       walkins: walkedInVisits,
-      waiting: Math.max(inProgress - inConsultation, 0),
-      inConsultation,
+      open: openVisits,
+      waiting: waitingVisits,
+      called: calledVisits,
+      inConsultation: inConsultationVisits,
+      readyForConsult,
       completed: completedVisits,
-      noShow,
+      admitted: admittedVisits,
+      referred: referredVisits,
+      // OPD absences plus missed appointments, so the tile matches what a
+      // supervisor means by "no-shows" rather than one half of it.
+      noShow: visitNoShows + (await Appointment.countDocuments({ date: { $gte: start, $lt: end }, status: 'NO_SHOW' })),
       appointmentsBooked,
       pendingBilling,
       pendingInvestigations,

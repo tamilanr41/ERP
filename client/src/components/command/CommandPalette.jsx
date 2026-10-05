@@ -14,7 +14,7 @@ const QUICK_ACTIONS = [
   { label: 'Billing', ref: '/billing', permission: 'BILLING_VIEW', icon: IndianRupee, roles: ['BILLING_STAFF', 'ACCOUNTANT'] },
   { label: 'Cashier', ref: '/cashier', permission: 'PAYMENT_CREATE', icon: Wallet, roles: ['PHARMACIST', 'BILLING_STAFF'] },
   { label: 'Insurance / TPA', ref: '/insurance', permission: 'INSURANCE_VIEW', icon: ShieldCheck, roles: ['INSURANCE_STAFF'] },
-  { label: 'OPD Queue', ref: '/queue', permission: 'OPD_VIEW', icon: ListChecks, roles: ['RECEPTIONIST', 'NURSE'] },
+  { label: 'OPD Queue', ref: '/opd/queue', permission: 'OPD_VIEW', icon: ListChecks, roles: ['RECEPTIONIST', 'NURSE'] },
   { label: 'Bed Command', ref: '/beds', permission: 'BED_VIEW', icon: BedDouble, roles: ['NURSE'] },
   { label: 'New Patient', ref: '/patients/new', permission: 'PATIENT_CREATE', icon: Users, roles: ['RECEPTIONIST'] },
   { label: 'New Appointment', ref: '/appointments', permission: 'APPOINTMENT_CREATE', icon: CalendarDays, roles: ['RECEPTIONIST'] },

@@ -60,7 +60,10 @@ export default function OpCompletion() {
   });
 
   const complete = useMutation({
-    mutationFn: async () => (await api.put(`/opd/visits/${id}`, { status: 'COMPLETED' })).data,
+    // PUT /opd/visits/:id records clinical fields; the state machine now owns
+    // the status change, so closing goes through the dedicated endpoint rather
+    // than posting { status } into a form-save.
+    mutationFn: async () => (await api.post(`/opd/visits/${id}/close`, {})).data,
     onSuccess: () => {
       toast.success('OP visit completed 🎉');
       qc.invalidateQueries({ queryKey: ['opd-visits'] });
@@ -70,18 +73,27 @@ export default function OpCompletion() {
     onError: (e) => toast.error(apiError(e)),
   });
 
-  const merged = { ...checksQuery.data, ...checks };
+  // The server-computed checks are advisory; the local checklist is what the
+  // clinician ticks, so they are shown side by side rather than merged into one
+  // silently-overriding object.
+  const serverChecks = checksQuery.data || {};
 
   const checkedCount = CHECKLIST.filter((c) => checks[c.key]).length;
   const allChecked = checkedCount === CHECKLIST.length;
-  const visitDisplay = useMemo(() => visit, [visit]);
 
   return (
     <div className="p-6">
       <PageHeader
         title="OP Completion"
-        subtitle="Verify the 8-step checklist, then mark the OP visit COMPLETED and hand over the OP deliverables."
-        actions={visitDisplay ? <Badge label={isReferred ? 'REFERRED' : isCompleted ? 'COMPLETED' : 'IN PROGRESS'} status={isCompleted ? 'COMPLETED' : 'IN_PROGRESS'} /> : null}
+        subtitle="Verify the 8-step checklist, then close the OP visit and hand over the OP deliverables."
+        actions={
+          visit ? (
+            <Badge
+              label={isReferred ? 'REFERRED' : isCompleted ? 'COMPLETED' : visit.status}
+              status={isReferred ? 'REFERRED' : isCompleted ? 'COMPLETED' : visit.status}
+            />
+          ) : null
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
@@ -91,7 +103,7 @@ export default function OpCompletion() {
           ) : visitQuery.error ? (
             <ErrorState message={apiError(visitQuery.error)} />
           ) : !visit ? (
-            <EmptyState title="No visit loaded" desc="Open this screen from a visit in the OP queue." />
+            <EmptyState title="No visit loaded" hint="Open this screen from a visit in the OP queue." />
           ) : (
             <>
               <div className="card">
@@ -102,11 +114,13 @@ export default function OpCompletion() {
                 <div className="grid grid-cols-1 gap-1.5 p-4 sm:grid-cols-2">
                   {CHECKLIST.map((item) => {
                     const done = checks[item.key] === true;
+                    const serverSaysDone = serverChecks[item.key] === true;
                     return (
                       <button
                         key={item.key}
                         onClick={() => setChecks((c) => ({ ...c, [item.key]: !done }))}
                         disabled={isCompleted}
+                        title={serverSaysDone ? 'The system already has a record for this step.' : undefined}
                         className={cn(
                           'flex items-start gap-2.5 rounded-xl border p-3 text-left text-sm transition',
                           done ? 'border-brand-300 bg-brand-50 text-brand-800' : 'border-ink-100 bg-white text-ink-700 hover:bg-ink-50',
@@ -115,7 +129,14 @@ export default function OpCompletion() {
                       >
                         {done ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" /> : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-ink-300" />}
                         <span>
-                          <span className="block font-medium">{item.label}</span>
+                          <span className="block font-medium">
+                            {item.label}
+                            {serverSaysDone && !done && (
+                              <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-mint-600">
+                                on record
+                              </span>
+                            )}
+                          </span>
                           <span className="mt-1 block text-xs text-ink-500">{item.desc}</span>
                         </span>
                       </button>

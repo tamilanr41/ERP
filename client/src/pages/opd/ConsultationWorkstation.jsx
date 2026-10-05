@@ -21,12 +21,17 @@ export default function ConsultationWorkstation() {
     refetchIntervalInBackground: true,
   });
 
+  // The clinical states of an open visit. A called patient is waiting to be
+  // started and a WAITING one has not been called yet, but both still belong
+  // on the doctor's list - only NO_SHOW, CANCELLED and the closed states leave.
+  const OPEN_STATUSES = ['WAITING', 'CALLED', 'IN_CONSULTATION'];
+
   const ready = useMemo(() => {
-    const rows = visits.data || [];
-    return rows
-      .filter((v) => v.vitalsStatus === 'COMPLETED' && v.status === 'IN_PROGRESS')
-      .sort((a, b) => new Date(a.visitDate) - new Date(b.visitDate));
-  }, [visits.data]);
+      const rows = visits.data || [];
+      return rows
+        .filter((v) => v.vitalsStatus === 'COMPLETED' && OPEN_STATUSES.includes(v.status))
+        .sort((a, b) => (a.tokenSeq ?? Infinity) - (b.tokenSeq ?? Infinity));
+    }, [visits.data]);
 
   const selected = useMemo(() => ready.find((v) => v._id === selectedId) || null, [ready, selectedId]);
 

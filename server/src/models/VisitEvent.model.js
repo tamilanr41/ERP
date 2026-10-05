@@ -23,6 +23,13 @@ export const VISIT_EVENT_TYPES = {
   VISIT_CLOSED: 'VISIT_CLOSED',
   VISIT_REFERRED: 'VISIT_REFERRED',
   VISIT_ADMITTED: 'VISIT_ADMITTED',
+  // Queue movements. The timeline is the only record of how long a patient
+  // actually waited, so being called and being marked absent have to be in it.
+  VISIT_CALLED: 'VISIT_CALLED',
+  VISIT_COMPLETED: 'VISIT_COMPLETED',
+  VISIT_IN_CONSULTATION: 'VISIT_IN_CONSULTATION',
+  VISIT_NO_SHOW: 'VISIT_NO_SHOW',
+  VISIT_CANCELLED: 'VISIT_CANCELLED',
   DOCUMENT_UPLOADED: 'DOCUMENT_UPLOADED',
 };
 

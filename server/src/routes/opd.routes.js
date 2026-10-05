@@ -8,6 +8,15 @@ import {
   completeVisitController,
   listVisitsController,
   getVisitController,
+  closeVisitController,
+  referVisitController,
+  admitVisitController,
+  getQueueBoardController,
+  callNextPatientController,
+  callVisitController,
+  startConsultationController,
+  markNoShowController,
+  cancelVisitController,
   createPrescriptionController,
   listPrescriptionsController,
   getPrescriptionController,
@@ -56,8 +65,28 @@ router.post('/visits', requirePermission('OPD_CREATE'), validate([
   body('patientId').notEmpty().withMessage('Patient required'),
   body('appointmentId').optional(),
 ]), createVisitController);
-router.get('/visits/:id', validate([visitIdParam()]), getVisitController);
+router.get('/visits/:id', requirePermission('OPD_VIEW'), validate([visitIdParam()]), getVisitController);
 router.put('/visits/:id', requirePermission('OPD_EDIT'), validate([visitIdParam()]), completeVisitController);
+
+// ---------------------------------------------------------------------------
+// Queue board / front desk.
+//
+// Reading the queue needs only OPD_VIEW. Moving a patient through it is a
+// separate OPD_QUEUE grant rather than OPD_EDIT, so the front desk can run the
+// waiting room without also being able to write diagnoses and prescriptions,
+// and a doctor who never touches the queue still cannot skip patients from it.
+router.get('/queue', requirePermission('OPD_VIEW'), getQueueBoardController);
+router.post('/queue/doctors/:doctorId/call-next', requirePermission('OPD_QUEUE'), callNextPatientController);
+router.post('/visits/:id/call', requirePermission('OPD_QUEUE'), validate([visitIdParam()]), callVisitController);
+router.post('/visits/:id/start-consultation', requirePermission('OPD_EDIT'), validate([visitIdParam()]), startConsultationController);
+// Closing, referring and admitting were implemented in the service layer but
+// never exposed - so the only way to finish a visit was to POST a status into
+// the clinical save, which is exactly the mass-assignment path now closed.
+router.post('/visits/:id/close', requirePermission('OPD_EDIT'), validate([visitIdParam()]), closeVisitController);
+router.post('/visits/:id/refer', requirePermission('OPD_EDIT'), validate([visitIdParam()]), referVisitController);
+router.post('/visits/:id/admit', requirePermission('OPD_EDIT'), validate([visitIdParam()]), admitVisitController);
+router.post('/visits/:id/no-show', requirePermission('OPD_QUEUE'), validate([visitIdParam()]), markNoShowController);
+router.post('/visits/:id/cancel', requirePermission('OPD_EDIT'), validate([visitIdParam()]), cancelVisitController);
 
 // ---------------------------------------------------------------------------
 // Workspace aggregate (single fetch powering the entire workspace tab: header

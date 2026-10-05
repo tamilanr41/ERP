@@ -11,6 +11,7 @@
     "seed": "node src/seed/seed.js",
     "test": "node --test \"tests/*.test.js\"",
     "migrate:atlas": "node scripts/migrate-to-atlas.mjs",
+    "migrate:opd-queue": "node scripts/backfill-opd-queue.mjs",
     "verify:atlas": "node scripts/verify-migration.mjs"
   },
   "dependencies": {

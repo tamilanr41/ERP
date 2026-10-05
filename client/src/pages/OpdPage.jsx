@@ -1130,7 +1130,9 @@ export function StepConsult({ journey, onNext }) {
   const submit = () => {
     const prevExam = ws?.visit?.examination || {};
     save.mutate({
-      status: 'IN_PROGRESS',
+      // Status is deliberately not sent. The visit's queue position is moved by
+      // the dedicated /start-consultation and /call endpoints; letting the save
+      // form set status would let a plain note edit advance or close a visit.
       consultedBy: user?.id,
       chiefComplaint: form.chiefComplaint || undefined,
       historyOfPresentingIllness: form.historyOfPresentingIllness || undefined,
@@ -1683,12 +1685,16 @@ function StepComplete({ journey, onNext, onEnd }) {
     onError: (e) => toast.error(apiError(e)),
   });
   const completeMut = useMutation({
+    // Status is no longer mass-assigned through the clinical save. PUT
+    // /opd/visits/:id records notes only; the state machine owns the move, so
+    // closing and referring go through their own endpoints.
     mutationFn: async () => {
-      const payload = { status: 'COMPLETED' };
-      if (referTo.trim()) { payload.status = 'REFERRED'; payload.referral = { toDoctor: referTo.trim(), notes: '' }; }
-      return (await api.put(`/opd/visits/${visit._id}`, payload)).data.data;
+      if (referTo.trim()) {
+        return (await api.post(`/opd/visits/${visit._id}/refer`, { toDepartment: referTo.trim(), notes: '' })).data.data;
+      }
+      return (await api.post(`/opd/visits/${visit._id}/close`, {})).data.data;
     },
-    onSuccess: (v) => { toast.success(referTo.trim() ? 'Visit referred' : 'OPD visit completed and closed'); setCompleted(true); qc.invalidateQueries({ queryKey: ['opd-visits'] }); },
+    onSuccess: (v) => { toast.success(referTo.trim() ? 'Visit referred' : 'OPD visit completed and closed'); setCompleted(true); qc.invalidateQueries({ queryKey: ['opd-visits'] }); qc.invalidateQueries({ queryKey: ['opd-queue'] }); },
     onError: (e) => toast.error(apiError(e)),
   });
 

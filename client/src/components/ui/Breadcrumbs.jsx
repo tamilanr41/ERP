@@ -19,6 +19,8 @@ const OPD_SECTIONS = {
   prescriptions: 'Prescriptions',
   referrals: 'Referrals',
   followup: 'Follow-up',
+  completion: 'Visit Completion',
+  documents: 'Documents',
   billing: 'OP Billing',
   payments: 'Payments',
   refunds: 'Refunds',

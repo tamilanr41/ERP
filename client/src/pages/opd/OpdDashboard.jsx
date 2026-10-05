@@ -12,6 +12,8 @@ import {
   Banknote,
   FlaskConical,
   CalendarClock,
+  BellRing,
+  BedDouble,
   UserPlus,
   IndianRupee,
   Plus,
@@ -199,10 +201,13 @@ export default function OpdDashboard() {
         <Kpi icon={UserPlus} label="Today's OPD" value={m.totalOPD ?? 0} tile={TILES.teal} sub="total visits" onClick={() => navigate('/opd/queue')} />
         <Kpi icon={CalendarDays} label="Appointments" value={m.appointments ?? 0} tile={TILES.violet} sub={`${m.appointmentsBooked ?? 0} booked`} onClick={() => navigate('/opd/appointments')} />
         <Kpi icon={Footprints} label="Walk-ins" value={m.walkins ?? 0} tile={TILES.mint} sub="without appointment" onClick={() => navigate('/opd/walkin')} />
-        <Kpi icon={Users} label="Waiting" value={m.waiting ?? 0} tile={TILES.amber} sub="in queue" onClick={() => navigate('/opd/queue')} />
+        <Kpi icon={Users} label="Waiting" value={m.waiting ?? 0} tile={TILES.amber} sub="not called yet" onClick={() => navigate('/opd/queue')} />
+        <Kpi icon={BellRing} label="Called" value={m.called ?? 0} tile={TILES.cyan} sub="seated, not started" onClick={() => navigate('/opd/queue')} />
+        <Kpi icon={Stethoscope} label="Ready for Doctor" value={m.readyForConsult ?? 0} tile={TILES.violet} sub="vitals done" onClick={() => navigate('/opd/consultation')} />
         <Kpi icon={UserCheck} label="In Consultation" value={m.inConsultation ?? 0} tile={TILES.cyan} onClick={() => navigate('/opd/consultation')} />
         <Kpi icon={CheckCircle2} label="Completed" value={m.completed ?? 0} tile={TILES.mint} onClick={() => navigate('/opd/search')} />
-        <Kpi icon={UserX} label="No Show" value={m.noShow ?? 0} tile={TILES.rose} onClick={() => navigate('/opd/appointments')} />
+        <Kpi icon={BedDouble} label="Admitted" value={m.admitted ?? 0} tile={TILES.teal} sub="moved to IPD" onClick={() => navigate('/ipd/admissions')} />
+        <Kpi icon={UserX} label="No Show" value={m.noShow ?? 0} tile={TILES.rose} sub="OPD + appointments" onClick={() => navigate('/opd/appointments')} />
         <Kpi icon={Banknote} label="Pending Billing" value={m.pendingBilling ?? 0} tile={TILES.amber} sub="needs payment" onClick={() => navigate('/opd/billing')} />
         <Kpi icon={FlaskConical} label="Pending Tests" value={m.pendingInvestigations ?? 0} tile={TILES.violet} onClick={() => navigate('/opd/orders')} />
         <Kpi icon={CalendarClock} label="Follow-ups" value={m.followUps ?? 0} tile={TILES.cyan} onClick={() => navigate('/opd/followup')} />

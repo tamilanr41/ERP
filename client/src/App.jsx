@@ -11,6 +11,7 @@ const PatientDetail = lazy(() => import('./pages/patients/PatientDetail'));
 const PatientForm = lazy(() => import('./pages/patients/PatientForm'));
 const Appointments = lazy(() => import('./pages/Appointments'));
 const QueueBoard = lazy(() => import('./pages/QueueBoard'));
+const OpdQueueBoard = lazy(() => import('./pages/opd/OpdQueueBoard'));
 const OpdPage = lazy(() => import('./pages/OpdPage'));
 const OpdWorkspace = lazy(() => import('./pages/opd/OpdWorkspace'));
 const OpdDashboard = lazy(() => import('./pages/opd/OpdDashboard'));
@@ -83,8 +84,9 @@ function App() {
         <Route path="patients/new" element={<Lazy><OpdRegistration /></Lazy>} />
         <Route path="patients/:id/edit" element={<Lazy><PatientForm /></Lazy>} />
         <Route path="patients/:id" element={<Lazy><PatientDetail /></Lazy>} />
-        <Route path="appointments" element={<Lazy><Appointments /></Lazy>} />
-        <Route path="queue" element={<Lazy><QueueBoard /></Lazy>} />
+<Route path="appointments" element={<Lazy><Appointments /></Lazy>} />
+          <Route path="queue" element={<Lazy><OpdQueueBoard /></Lazy>} />
+          <Route path="appointments-queue" element={<Lazy><QueueBoard /></Lazy>} />
         <Route path="opd" element={<Lazy><OpdWorkspace /></Lazy>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Lazy><OpdDashboard /></Lazy>} />
@@ -98,7 +100,7 @@ function App() {
           <Route path="prescriptions" element={<Lazy><PrescriptionsScreen /></Lazy>} />
           <Route path="referrals" element={<Lazy><ReferralsScreen /></Lazy>} />
           <Route path="followup" element={<Lazy><FollowUpScreen /></Lazy>} />
-          <Route path="completion" element={<Lazy><OpCompletion /></Lazy>} />
+          <Route path="completion/:id" element={<Lazy><OpCompletion /></Lazy>} />
           <Route path="documents" element={<Lazy><OpdDocuments /></Lazy>} />
           <Route path="orders" element={<Lazy><Lab /></Lazy>} />
           <Route path="billing" element={<Lazy><Billing /></Lazy>} />

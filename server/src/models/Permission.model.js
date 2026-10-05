@@ -25,6 +25,7 @@ permissionSchema.statics.ensureDefaults = async function () {
     ['OPD_VIEW', 'opd', 'View OPD visits'],
     ['OPD_CREATE', 'opd', 'Create OPD visit'],
     ['OPD_EDIT', 'opd', 'Edit OPD visit'],
+    ['OPD_QUEUE', 'opd', 'Call and move patients through the OPD queue'],
     ['VITALS_CREATE', 'opd', 'Record vitals'],
     ['PRESCRIPTION_CREATE', 'opd', 'Create prescriptions'],
     ['PRESCRIPTION_VIEW', 'opd', 'View prescriptions'],

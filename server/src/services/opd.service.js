@@ -1,4 +1,10 @@
-﻿import OpdVisit from '../models/OpdVisit.model.js';
+﻿import OpdVisit, {
+  OPD_VISIT_STATUS,
+  canTransitionOpdVisit,
+  OPD_OPEN_STATES,
+  OPD_CLOSED_STATES,
+  OPD_STOOD_DOWN_STATES,
+} from '../models/OpdVisit.model.js';
 import Prescription from '../models/Prescription.model.js';
 import Appointment, { APPOINTMENT_STATUS } from '../models/Appointment.model.js';
 import VitalRecord from '../models/VitalRecord.model.js';
@@ -13,27 +19,146 @@ import Patient from '../models/Patient.model.js';
 import ExaminationTemplate from '../models/ExaminationTemplate.model.js';
 import DiagnosisMaster from '../models/DiagnosisMaster.model.js';
 import { generateNumber, NUMBER_PREFIXES, generateOpdNumber } from '../utils/numberGenerator.js';
+import Counter from '../models/Counter.model.js';
 import { BadRequestError, NotFoundError } from '../utils/ApiError.js';
+
+/* ---------------------------------------------------------------------------
+ * Queue tokens
+ * ------------------------------------------------------------------------- */
+const padToken = (n) => String(n).padStart(3, '0');
+
+export const dayKey = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * Issue the next queue token for a doctor on a given day.
+ *
+ * Derived by incrementing a counter row rather than by reading max(tokenSeq) and
+ * adding one: two clerks pressing "register" at the same time would otherwise
+ * both read the same max and hand two patients the same number. $inc on a unique
+ * counter is atomic, so the numbers can never collide.
+ */
+export const issueQueueToken = async (doctorId, when = new Date(), session = null) => {
+  const tokenDate = dayKey(when);
+  const key = `OPD_QUEUE_${doctorId || 'GENERAL'}_${tokenDate}`;
+  const counter = await Counter.findOneAndUpdate(
+    { key },
+    {
+      $inc: { seq: 1 },
+      // Counter requires these; supplying them keeps the atomic $inc usable
+      // without a second read.
+      $setOnInsert: { prefix: 'OPDQ', year: Number(tokenDate.slice(0, 4)) },
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
+  ).session(session || null);
+  // Named tokenSeq to match the model field, so a caller cannot destructure a
+  // non-existent key and silently persist an undefined queue position.
+  return { tokenSeq: counter.seq, tokenDate, queueToken: `T-${padToken(counter.seq)}` };
+};
+
+const appendStatusHistory = (visit, from, to, actor, note) => {
+  visit.statusHistory.push({ from, to, at: new Date(), actorId: actor?.id, note });
+  visit.markModified('statusHistory');
+};
+
+/**
+ * Move a visit between queue states, refusing anything the state machine does
+ * not allow. Centralised so the transition and its audit entry cannot drift
+ * apart, and so a closed visit cannot be silently reopened by any caller.
+ */
+export const transitionOpdVisit = async (visit, to, actor, note) => {
+  const from = visit.status;
+  if (!Object.values(OPD_VISIT_STATUS).includes(to)) {
+    throw new BadRequestError(`Unknown OPD status: ${to}`);
+  }
+  // A no-op transition is treated as an error rather than a silent success:
+  // these actions are all user-initiated, so from === to means a double submit
+  // or a stale screen, and quietly returning hides it instead of surfacing it.
+  if (from === to) {
+    throw new BadRequestError(`Visit is already ${to.toLowerCase()}`);
+  }
+  if (!canTransitionOpdVisit(from, to)) {
+    const legal = Object.entries({
+      [from]: (await import('../models/OpdVisit.model.js')).OPD_VISIT_TRANSITIONS[from],
+    })[0][1];
+    throw new BadRequestError(
+      `Cannot move a visit from ${from} to ${to}` + (legal?.length ? ` (allowed: ${legal.join(', ')})` : ' (this visit is already closed)'),
+    );
+  }
+
+  visit.status = to;
+  const now = new Date();
+  if (to === OPD_VISIT_STATUS.CALLED) {
+    visit.calledAt = now;
+    visit.calledBy = actor?.id;
+  }
+  if (to === OPD_VISIT_STATUS.IN_CONSULTATION && !visit.consultStartedAt) visit.consultStartedAt = now;
+  if ([OPD_VISIT_STATUS.COMPLETED, OPD_VISIT_STATUS.REFERRED, OPD_VISIT_STATUS.ADMITTED].includes(to)) {
+    visit.consultEndedAt = visit.consultEndedAt || now;
+  }
+  if (to === OPD_VISIT_STATUS.NO_SHOW) visit.noShowMarkedAt = now;
+  appendStatusHistory(visit, from, to, actor, note);
+
+  await visit.save();
+  await VisitEvent.create({
+    visitId: visit._id,
+    patientId: visit.patientId,
+    type: to === OPD_VISIT_STATUS.NO_SHOW ? 'VISIT_NO_SHOW' : `VISIT_${to}`,
+    title: `OPD status: ${from} -> ${to}`,
+    happenedAt: now,
+    actorId: actor?.id,
+  });
+  return visit;
+};
 
 export const createOpdVisit = async (payload, actor) => {
   const { patientId, appointmentId } = payload;
   const patient = await Patient.findById(patientId);
   if (!patient) throw new BadRequestError('Patient not found');
 
-  let status = 'IN_PROGRESS';
   let appointment = null;
   if (appointmentId) {
     appointment = await Appointment.findById(appointmentId);
-    if (APPOINTMENT_STATUS && appointment && appointment.status === APPOINTMENT_STATUS.COMPLETED) {
+    if (!appointment) throw new BadRequestError('Appointment not found');
+    if (appointment.status === APPOINTMENT_STATUS.COMPLETED) {
       throw new BadRequestError('Appointment already completed');
+    }
+    if (String(appointment.patientId) !== String(patientId)) {
+      // Registering someone else against a booked slot is how a visit ends up
+      // filed under the wrong patient, so refuse rather than silently ignore.
+      throw new BadRequestError('Appointment belongs to a different patient');
+    }
+    if (appointment.doctorId && !payload.doctorId) {
+      payload.doctorId = String(appointment.doctorId);
     }
   }
 
+  // One live visit per patient per doctor per day. A patient who genuinely needs
+  // a second opinion, or a follow-up the same day, is a real scenario - so the
+  // block is scoped to an unfinished visit, not to the patient forever.
+  const tokenDate = dayKey();
+  const duplicate = await OpdVisit.findOne({
+    patientId,
+    tokenDate,
+    status: { $in: [OPD_VISIT_STATUS.WAITING, OPD_VISIT_STATUS.CALLED, OPD_VISIT_STATUS.IN_CONSULTATION] },
+  }).select('opdNumber status doctorId');
+  if (duplicate) {
+    throw new BadRequestError(
+      `Patient already has an unfinished OPD visit today (${duplicate.opdNumber}, ${duplicate.status.toLowerCase().replace('_', ' ')}). ` +
+        'Complete or cancel it before registering again.',
+    );
+  }
+
   const opdNumber = await generateOpdNumber();
+  const { queueToken, tokenSeq } = await issueQueueToken(payload.doctorId);
   const { heightCm, weightKg, ...restVitals } = payload.vitals || {};
   const bmi = heightCm && weightKg ? (weightKg / Math.pow(heightCm / 100, 2)).toFixed(2) : null;
   const visit = await OpdVisit.create({
     opdNumber,
+    queueToken,
+    tokenSeq,
+    tokenDate,
+    checkedInAt: new Date(),
     patientId,
     appointmentId,
     visitType: payload.visitType || 'NEW',
@@ -41,13 +166,23 @@ export const createOpdVisit = async (payload, actor) => {
     historyOfPresentingIllness: payload.historyOfPresentingIllness,
     departmentId: payload.departmentId,
     doctorId: payload.doctorId,
-    status,
+    status: OPD_VISIT_STATUS.WAITING,
+    // Seeded as part of the insert: a push after create() only mutates the
+    // in-memory doc, so the opening WAITING step never reached the timeline.
+    statusHistory: [
+      {
+        from: null,
+        to: OPD_VISIT_STATUS.WAITING,
+        at: new Date(),
+        actorId: actor?.id,
+        note: `Token ${queueToken}`,
+      },
+    ],
     vitals: { heightCm, weightKg, bmi, ...restVitals },
     hospitalId: actor?.hospitalId || payload.hospitalId,
     branchId: actor?.branchId || payload.branchId,
     createdBy: actor?.id,
   });
-
   if (appointment) {
     appointment.status = APPOINTMENT_STATUS.IN_PROGRESS;
     await appointment.save();
@@ -58,7 +193,7 @@ export const createOpdVisit = async (payload, actor) => {
     patientId,
     visit: visit._id,
     type: 'VISIT_CREATED',
-    title: 'OPD visit created',
+    title: `OPD visit created - token ${queueToken}`,
     happenedAt: new Date(),
     actorId: actor?.id,
     touchedBy: actor?.id,
@@ -69,16 +204,51 @@ export const createOpdVisit = async (payload, actor) => {
   return visit;
 };
 
+/**
+ * Fields a clinician may write while completing a visit. Anything not listed is
+ * ignored, because the old implementation spread the raw request body straight
+ * onto the document - which let a caller move a visit to a different patient,
+ * rewrite its opdNumber, or touch admissionId/status fields by including them.
+ * Identity, queue position and billing links are never client-writable.
+ */
+const COMPLETABLE_FIELDS = [
+  'visitType',
+  'chiefComplaint',
+  'historyOfPresentingIllness',
+  'pastHistory',
+  'pastMedicalHistory',
+  'pastSurgicalHistory',
+  'familyHistory',
+  'personalHistory',
+  'medicationHistory',
+  'allergies',
+  'examination',
+  'diagnosis',
+  'treatmentPlan',
+  'advice',
+  'followUpDate',
+  'closeNotes',
+];
+
 export const completeOpdVisit = async (id, payload, actor) => {
   const visit = await OpdVisit.findById(id);
   if (!visit) throw new NotFoundError('OPD visit not found');
 
+  // A clinical save is a note edit, so it is only blocked once the visit has
+  // actually left the department. WAITING / CALLED / IN_CONSULTATION are all
+  // still live, and refusing edits merely because the patient is in the waiting
+  // room would stop the clinician recording anything on arrival.
+  const UNEDITABLE = [...OPD_CLOSED_STATES, ...OPD_STOOD_DOWN_STATES];
+  if (UNEDITABLE.includes(visit.status)) {
+    throw new BadRequestError(`Visit is already ${visit.status.toLowerCase()} and can no longer be edited`);
+  }
+
   const vitals = payload.vitals || {};
-  Object.assign(visit, {
-    ...payload,
-    vitals: { ...vitals, bmi: computeBMI(vitals.heightCm, vitals.weightKg) },
-    status: payload.status || 'COMPLETED',
-  });
+  for (const field of COMPLETABLE_FIELDS) {
+    if (payload[field] !== undefined) visit[field] = payload[field];
+  }
+  visit.vitals = { ...visit.vitals, ...vitals, bmi: computeBMI(vitals.heightCm ?? visit.vitals?.heightCm, vitals.weightKg ?? visit.vitals?.weightKg) };
+  if (Object.keys(vitals).length) visit.vitalsStatus = 'COMPLETED';
   await visit.save();
 
   await VisitEvent.create({
@@ -96,13 +266,24 @@ export const completeOpdVisit = async (id, payload, actor) => {
   return visit;
 };
 
+/**
+ * Default order is by token within a doctor, which is the order the waiting room
+ * is actually served in. Sorting by visitDate instead would show the newest
+ * registration first and hide whoever has waited longest.
+ */
+const queueSortFor = (query) => {
+  if (query.sort === 'wait') return { checkedInAt: 1 };
+  if (query.sort === 'recent') return { visitDate: -1 };
+  return { tokenSeq: 1, visitDate: 1 };
+};
+
 export const listOpdVisits = async (query) => {
   const page = Math.max(parseInt(query.page, 10) || 1, 1);
   const limit = Math.min(Math.max(parseInt(query.limit, 10) || 20, 1), 100);
   const filter = {};
   if (query.patientId) filter.patientId = query.patientId;
   if (query.doctorId) filter.doctorId = query.doctorId;
-  if (query.status) filter.status = query.status;
+  if (query.status) filter.status = { $in: String(query.status).split(',').filter(Boolean) };
   if (query.from || query.to) {
     filter.visitDate = {};
     if (query.from) filter.visitDate.$gte = new Date(query.from);
@@ -115,7 +296,7 @@ export const listOpdVisits = async (query) => {
       .populate('patientId', 'uhid firstName lastName mobile gender photo age')
       .populate('doctorId', 'name specialization')
       .populate('departmentId', 'name')
-      .sort({ visitDate: -1 })
+      .sort(queueSortFor(query))
       .skip((page - 1) * limit)
       .limit(limit),
   ]);
@@ -142,6 +323,8 @@ export const listOpdVisits = async (query) => {
   }
   const data = visits.map((v) => ({
     ...v.toObject(),
+    // Computed per request so a stale stored value can never mislead the desk.
+    waitingMins: v.status === OPD_VISIT_STATUS.WAITING ? minutesBetween(v.checkedInAt || v.visitDate) : null,
     billing: billingMap.get(String(v._id)) || { billCount: 0, totalGross: 0, totalPaid: 0, totalDue: 0, outstandingCount: 0 },
   }));
   return { data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
@@ -509,30 +692,141 @@ export const getVisitBillingService = async (visitId) => {
 export const closeVisitService = async (visitId, payload, actor) => {
   const visit = await OpdVisit.findById(visitId);
   if (!visit) throw new NotFoundError('OPD visit not found');
-  visit.status = 'COMPLETED';
-  visit.closeNotes = payload.closeNotes || visit.closeNotes;
-  await visit.save();
-  await VisitEvent.create({ visitId, patientId: visit.patientId, type: 'VISIT_CLOSED', title: 'Visit closed', happenedAt: new Date(), actorId: actor?.id });
+  if (payload.closeNotes !== undefined) visit.closeNotes = payload.closeNotes;
+  await transitionOpdVisit(visit, OPD_VISIT_STATUS.COMPLETED, actor, payload.closeNotes);
   return visit;
 };
 
 export const referVisitService = async (visitId, payload, actor) => {
   const visit = await OpdVisit.findById(visitId);
   if (!visit) throw new NotFoundError('OPD visit not found');
-  visit.status = 'REFERRED';
-  visit.referral = payload;
-  await visit.save();
-  await VisitEvent.create({ visitId, patientId: visit.patientId, type: 'VISIT_REFERRED', title: `Referred to ${payload.toDoctor || payload.toDepartment || 'another doctor'}`, happenedAt: new Date(), actorId: actor?.id });
+  if (!payload.toDoctor && !payload.toDepartment) {
+    throw new BadRequestError('A referral needs a destination doctor or department');
+  }
+  // Set before the transition and saved by it, so a rejected move cannot leave
+  // a referral recorded against a visit that never became REFERRED.
+  visit.referral = { ...payload, referredAt: new Date() };
+  await transitionOpdVisit(visit, OPD_VISIT_STATUS.REFERRED, actor, payload.reason);
   return visit;
 };
 
 export const admitVisitService = async (visitId, payload, actor) => {
   const visit = await OpdVisit.findById(visitId);
   if (!visit) throw new NotFoundError('OPD visit not found');
-  visit.status = 'ADMITTED';
-  visit.admission = payload;
-  await visit.save();
-  await VisitEvent.create({ visitId, patientId: visit.patientId, type: 'VISIT_ADMITTED', title: 'Visit admitted to ward', happenedAt: new Date(), actorId: actor?.id });
+  // An admission with nowhere to put the patient is not an admission. Mirrors
+  // the referral destination check.
+  if (!payload.ward && !payload.bed && !payload.bedId && !payload.ipdAdmissionId) {
+    throw new BadRequestError('An admission needs a ward or bed');
+  }
+  visit.admission = { ...payload, admittedAt: new Date() };
+  await transitionOpdVisit(visit, OPD_VISIT_STATUS.ADMITTED, actor, payload.reason);
+  return visit;
+};
+
+/* ---------------------------------------------------------------------------
+ * Queue board
+ * ------------------------------------------------------------------------- */
+/** Minutes between two moments; negative differences are clamped to 0. */
+const minutesBetween = (from, to = new Date()) =>
+  from ? Math.max(0, Math.round((to - from) / 60000)) : null;
+
+/**
+ * The front desk's view: who is waiting, who has been called, who is inside.
+ * Wait time is derived here rather than stored so it can never go stale.
+ */
+export const getQueueBoardService = async ({ doctorId, departmentId, date } = {}) => {
+  const tokenDate = date || dayKey();
+  const filter = { tokenDate, status: { $in: OPD_OPEN_STATES } };
+  if (doctorId) filter.doctorId = doctorId;
+  if (departmentId) filter.departmentId = departmentId;
+
+  const visits = await OpdVisit.find(filter)
+    .populate('patientId', 'uhid firstName lastName gender age')
+    .populate('doctorId', 'name specialization')
+    .sort({ status: 1, tokenSeq: 1 });
+
+  const now = new Date();
+  const rows = visits.map((v) => ({
+    _id: v._id,
+    opdNumber: v.opdNumber,
+    queueToken: v.queueToken,
+    tokenSeq: v.tokenSeq,
+    status: v.status,
+    visitType: v.visitType,
+    chiefComplaint: v.chiefComplaint,
+    checkedInAt: v.checkedInAt,
+    calledAt: v.calledAt,
+    consultStartedAt: v.consultStartedAt,
+    doctorId: v.doctorId,
+    departmentId: v.departmentId,
+    patient: v.patientId,
+    waitingMins: v.status === OPD_VISIT_STATUS.WAITING ? minutesBetween(v.checkedInAt, now) : null,
+    // How long the patient has been sitting since being called, or since
+    // check-in if the doctor has not started them yet.
+    seatedMins: v.calledAt ? minutesBetween(v.calledAt, now) : null,
+    consultMins: v.consultStartedAt ? minutesBetween(v.consultStartedAt, now) : null,
+  }));
+
+  return {
+    date: tokenDate,
+    counts: {
+      waiting: rows.filter((r) => r.status === OPD_VISIT_STATUS.WAITING).length,
+      called: rows.filter((r) => r.status === OPD_VISIT_STATUS.CALLED).length,
+      inConsultation: rows.filter((r) => r.status === OPD_VISIT_STATUS.IN_CONSULTATION).length,
+    },
+    // Longest current wait, so the desk can see who is being neglected.
+    maxWaitingMins: rows.reduce((max, r) => (r.waitingMins != null && r.waitingMins > max ? r.waitingMins : max), 0),
+    queue: rows,
+  };
+};
+
+/**
+ * Call the longest-waiting patient for a doctor. Idempotent in the sense that a
+ * second call with no one waiting is a no-op returning null, so a double click on
+ * a "Call next" button does not skip a patient.
+ */
+export const callNextPatientService = async (doctorId, actor) => {
+  if (!doctorId) throw new BadRequestError('A doctor must be selected to call the next patient');
+  const next = await OpdVisit.findOne({
+    doctorId,
+    tokenDate: dayKey(),
+    status: OPD_VISIT_STATUS.WAITING,
+  }).sort({ tokenSeq: 1 });
+
+  if (!next) return null;
+  await transitionOpdVisit(next, OPD_VISIT_STATUS.CALLED, actor);
+  return next.populate('patientId', 'uhid firstName lastName gender age');
+};
+
+export const callVisitService = async (visitId, actor) => {
+  const visit = await OpdVisit.findById(visitId);
+  if (!visit) throw new NotFoundError('OPD visit not found');
+  await transitionOpdVisit(visit, OPD_VISIT_STATUS.CALLED, actor);
+  return visit;
+};
+
+export const startConsultationService = async (visitId, actor) => {
+  const visit = await OpdVisit.findById(visitId);
+  if (!visit) throw new NotFoundError('OPD visit not found');
+  await transitionOpdVisit(visit, OPD_VISIT_STATUS.IN_CONSULTATION, actor);
+  return visit;
+};
+
+export const markNoShowService = async (visitId, actor) => {
+  const visit = await OpdVisit.findById(visitId);
+  if (!visit) throw new NotFoundError('OPD visit not found');
+  await transitionOpdVisit(visit, OPD_VISIT_STATUS.NO_SHOW, actor);
+  return visit;
+};
+
+/**
+ * Cancel at the desk - the one way out of a queue position. Kept apart from the
+ * clinical transitions because a patient who cannot wait is not a clinical event.
+ */
+export const cancelVisitService = async (visitId, actor, reason) => {
+  const visit = await OpdVisit.findById(visitId);
+  if (!visit) throw new NotFoundError('OPD visit not found');
+  await transitionOpdVisit(visit, OPD_VISIT_STATUS.CANCELLED, actor, reason);
   return visit;
 };
 

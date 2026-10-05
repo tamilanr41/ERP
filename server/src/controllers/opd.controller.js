@@ -4,9 +4,15 @@ import asyncHandler from '../utils/asyncHandler.js';
 import { writeAudit } from '../middleware/audit.js';
 import {
   createOpdVisit,
-  completeOpdVisit,
-  listOpdVisits,
-  getOpdVisit,
+completeOpdVisit,
+    listOpdVisits,
+    getOpdVisit,
+    getQueueBoardService,
+    callNextPatientService,
+    callVisitService,
+    startConsultationService,
+    markNoShowService,
+    cancelVisitService,
   createPrescription,
   listPrescriptions,
   getPrescription,
@@ -62,7 +68,49 @@ export const listVisitsController = asyncHandler(async (req, res) => {
 });
 
 export const getVisitController = asyncHandler(async (req, res) => {
-  success(res, await getOpdVisit(req.params.id), 'OPD visit fetched');
+    success(res, await getOpdVisit(req.params.id), 'OPD visit fetched');
+});
+
+/* ---------------------------------------------------------------------------
+ * Queue board / front desk
+ * ------------------------------------------------------------------------- */
+export const getQueueBoardController = asyncHandler(async (req, res) => {
+    success(res, await getQueueBoardService({
+        doctorId: req.query.doctorId,
+        departmentId: req.query.departmentId,
+        date: req.query.date,
+    }), 'OPD queue board fetched');
+});
+
+export const callNextPatientController = asyncHandler(async (req, res) => {
+    const visit = await callNextPatientService(req.params.doctorId, req.user);
+    if (!visit) return success(res, null, 'Nobody is waiting for this doctor right now');
+    await writeAudit({ user: req.user, action: 'OPD_QUEUE_CALL_NEXT', module: 'opd', entityId: visit._id, entityType: 'OpdVisit', req });
+    success(res, visit, `Called token ${visit.queueToken}`);
+});
+
+export const callVisitController = asyncHandler(async (req, res) => {
+    const v = await callVisitService(req.params.id, req.user);
+    await writeAudit({ user: req.user, action: 'OPD_QUEUE_CALL', module: 'opd', entityId: v._id, entityType: 'OpdVisit', req });
+    success(res, v, `Called token ${v.queueToken}`);
+});
+
+export const startConsultationController = asyncHandler(async (req, res) => {
+    const v = await startConsultationService(req.params.id, req.user);
+    await writeAudit({ user: req.user, action: 'OPD_QUEUE_START', module: 'opd', entityId: v._id, entityType: 'OpdVisit', req });
+    success(res, v, 'Consultation started');
+});
+
+export const markNoShowController = asyncHandler(async (req, res) => {
+    const v = await markNoShowService(req.params.id, req.user);
+    await writeAudit({ user: req.user, action: 'OPD_QUEUE_NO_SHOW', module: 'opd', entityId: v._id, entityType: 'OpdVisit', req });
+    success(res, v, 'Marked as no-show');
+});
+
+export const cancelVisitController = asyncHandler(async (req, res) => {
+    const v = await cancelVisitService(req.params.id, req.user, req.body?.reason);
+    await writeAudit({ user: req.user, action: 'OPD_QUEUE_CANCEL', module: 'opd', entityId: v._id, entityType: 'OpdVisit', req });
+    success(res, v, 'Visit cancelled');
 });
 
 export const createPrescriptionController = asyncHandler(async (req, res) => {
