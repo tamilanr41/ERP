@@ -260,6 +260,58 @@ test('opd: a rejected transition does not leave the referral or admission behind
   assert.ok(!reread.admission, 'no admission may be recorded on a visit that was not admitted');
 });
 
+test('opd: legacy IN_PROGRESS visits are migrated onto the current lifecycle', async () => {
+  const svc = await import('../src/services/opd.service.js');
+  const OpdVisit = (await import('../src/models/OpdVisit.model.js')).default;
+
+  // Seeded with raw collection writes: IN_PROGRESS is no longer in the enum, so
+  // it cannot be produced through the model at all.
+  const checkedInAt = new Date('2026-09-23T04:30:00.000Z');
+  const { insertedIds } = await OpdVisit.collection.insertMany([
+    { opdNumber: 'LEGACY-1', patientId: new (await import('mongoose')).Types.ObjectId(), status: 'IN_PROGRESS', checkedInAt, visitDate: checkedInAt },
+    { opdNumber: 'LEGACY-2', patientId: new (await import('mongoose')).Types.ObjectId(), status: 'IN_PROGRESS', checkedInAt, visitDate: checkedInAt },
+    { opdNumber: 'CURRENT-1', patientId: new (await import('mongoose')).Types.ObjectId(), status: 'COMPLETED' },
+  ]);
+
+  const migrated = await svc.migrateLegacyOpdVisits();
+  assert.equal(migrated, 2, 'only the IN_PROGRESS rows are touched');
+
+  const legacy = await OpdVisit.findById(insertedIds[0]).lean();
+  assert.equal(legacy.status, 'IN_CONSULTATION');
+  assert.equal(new Date(legacy.consultStartedAt).toISOString(), checkedInAt.toISOString(), 'consult start falls back to check-in');
+  assert.ok(!legacy.tokenSeq, 'a pre-queue visit must not be given a queue token');
+  assert.ok(!legacy.queueToken);
+  assert.ok(!legacy.tokenDate, 'without a tokenDate it stays off today\'s board');
+  assert.equal(legacy.statusHistory.length, 1, 'the migration is recorded, not silent');
+  assert.match(legacy.statusHistory[0].note, /IN_PROGRESS/);
+
+  const untouched = await OpdVisit.findById(insertedIds[2]).lean();
+  assert.equal(untouched.status, 'COMPLETED', 'current records are not rewritten');
+
+  assert.equal(await svc.migrateLegacyOpdVisits(), 0, 'running again is a no-op');
+});
+
+test('opd: a legacy visit is finishable after migration', async () => {
+  const svc = await import('../src/services/opd.service.js');
+  const OpdVisit = (await import('../src/models/OpdVisit.model.js')).default;
+  const mongoose = (await import('mongoose')).default;
+  const { insertedId } = await OpdVisit.collection.insertOne({
+    opdNumber: 'LEGACY-FINISH',
+    patientId: new mongoose.Types.ObjectId(),
+    status: 'IN_PROGRESS',
+    checkedInAt: new Date('2026-09-23T04:30:00.000Z'),
+    visitDate: new Date('2026-09-23T04:30:00.000Z'),
+  });
+
+  await svc.migrateLegacyOpdVisits();
+
+  // The whole point of migrating rather than deleting: the visit can still be
+  // completed, which an unmigrated IN_PROGRESS row could never do.
+  const closed = await svc.closeVisitService(insertedId, { closeNotes: 'closing a migrated visit' }, actor());
+  assert.equal(closed.status, 'COMPLETED');
+  assert.deepEqual(closed.statusHistory.map((h) => h.to), ['IN_CONSULTATION', 'COMPLETED']);
+});
+
 test('opd: a queue token is never handed out twice', async () => {
   const svc = await import('../src/services/opd.service.js');
   const OpdVisit = (await import('../src/models/OpdVisit.model.js')).default;

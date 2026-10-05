@@ -5,7 +5,7 @@ import logger from './config/logger.js';
 import { connectDB } from './config/db.js';
 import { bootstrapRoles, bootstrapAdminUser } from './services/auth.service.js';
 import { bootstrapFeatureFlags } from './services/featureFlag.service.js';
-import { seedExaminationTemplates, seedDiagnosisMaster } from './services/opd.service.js';
+import { seedExaminationTemplates, seedDiagnosisMaster, migrateLegacyOpdVisits } from './services/opd.service.js';
 import { backfillUserNames } from './services/auth.service.js';
 import { ensureChargeConfig } from './services/ipd.billing.service.js';
 import { seedDialysisInfrastructure } from './services/dialysis.seed.js';
@@ -24,6 +24,10 @@ const start = async () => {
     await bootstrapFeatureFlags();
     logger.info('Feature flags bootstrapped');
     await backfillUserNames();
+    // Runs on every boot so a database created before the OPD queue split is
+    // never left holding visits that cannot be closed.
+    const opdMigrated = await migrateLegacyOpdVisits();
+    if (opdMigrated) logger.info(`OPD legacy IN_PROGRESS visits migrated | ${JSON.stringify({ migrated: opdMigrated })}`);
     await ensureChargeConfig();
     await seedExaminationTemplates();
     logger.info('Examination templates seeded');

@@ -734,6 +734,53 @@ const minutesBetween = (from, to = new Date()) =>
  * The front desk's view: who is waiting, who has been called, who is inside.
  * Wait time is derived here rather than stored so it can never go stale.
  */
+/**
+ * Move any pre-queue visits onto the current lifecycle.
+ *
+ * OPD used to have a single active status, IN_PROGRESS. That value is no longer
+ * in the enum and no transition accepts it, so an unmigrated visit could be
+ * opened but never closed, referred or admitted - it was stuck for good.
+ *
+ * IN_CONSULTATION is the only target that keeps it finishable. Mapping to
+ * WAITING would drop it into a queue it was never issued a token for.
+ *
+ * Idempotent, so it runs on every boot like the other bootstrap steps and is a
+ * no-op once the database is clean. Tokens are deliberately not back-dated:
+ * a visit that predates the queue must not consume a number that was never
+ * handed out, and leaving tokenSeq absent keeps these rows off today's board
+ * (which filters on tokenDate) without breaking the partial unique index.
+ *
+ * @returns {Promise<number>} how many visits were migrated
+ */
+export const migrateLegacyOpdVisits = async () => {
+  const legacy = await OpdVisit.find({ status: 'IN_PROGRESS' }).select('_id checkedInAt visitDate createdAt').lean();
+  if (!legacy.length) return 0;
+
+  const now = new Date();
+  const ops = legacy.map((visit) => ({
+    updateOne: {
+      filter: { _id: visit._id, status: 'IN_PROGRESS' },
+      update: {
+        $set: {
+          status: OPD_VISIT_STATUS.IN_CONSULTATION,
+          consultStartedAt: visit.checkedInAt || visit.visitDate || visit.createdAt,
+        },
+        $push: {
+          statusHistory: {
+            from: null,
+            to: OPD_VISIT_STATUS.IN_CONSULTATION,
+            at: now,
+            note: 'Migrated from IN_PROGRESS; no queue token was ever issued for this visit',
+          },
+        },
+      },
+    },
+  }));
+
+  const res = await OpdVisit.bulkWrite(ops, { ordered: false });
+  return res.modifiedCount || 0;
+};
+
 export const getQueueBoardService = async ({ doctorId, departmentId, date } = {}) => {
   const tokenDate = date || dayKey();
   const filter = { tokenDate, status: { $in: OPD_OPEN_STATES } };
